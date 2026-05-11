@@ -3,7 +3,7 @@ version = 5
 cloudstream {
     description = "Kawanfilm"
     language = "id"
-    authors = listOf("Duro92")
+    authors = listOf("BetbetMiro")
 
     /**
      * Status int as the following:

@@ -3,7 +3,7 @@ version = 9
 cloudstream {
     description = "Ngefilm"
     language = "id"
-    authors = listOf("Duro92")
+    authors = listOf("BetbetMiro")
 
     /**
      * Status int as the following:

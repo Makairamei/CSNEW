@@ -3,7 +3,7 @@ version = 8
 cloudstream {
     description = "Melongmovie"
     language = "id"
-    authors = listOf("Duro92")
+    authors = listOf("BetbetMiro")
 
     /**
      * Status int as the following:

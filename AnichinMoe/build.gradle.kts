@@ -5,7 +5,7 @@ cloudstream {
     
     language = "id"
     
-    authors = listOf("Duro92", "CodeSanzz")
+    authors = listOf("BetbetMiro")
     
     status = 1
     
