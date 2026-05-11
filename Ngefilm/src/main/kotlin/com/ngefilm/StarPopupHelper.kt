@@ -1,4 +1,4 @@
-package com.MovieBox
+package com.ngefilm
 
 import android.app.Activity
 import android.app.AlertDialog
