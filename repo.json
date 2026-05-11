@@ -1,7 +1,7 @@
 {
     "name": "BetbetMiro-Extension",
     "iconUrl": "https://raw.githubusercontent.com/sad25kag/BetbetMiro-Extension/snap.png",
-    "description": "Phisher Repository",
+    "description": "BetbetMiro Repository",
     "manifestVersion": 1,
     "pluginLists": [
       "https://raw.githubusercontent.com/sad25kag/BetbetMiro-Extension/builds/plugins.json"
