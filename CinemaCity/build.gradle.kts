@@ -2,7 +2,7 @@
 version = 4
 
 cloudstream {
-    authors     = listOf("ByAyzen", "kraptor")
+    authors     = listOf("BetbetMiro")
     language    = "en"
     description = "Cinema City."
     status  = 1 // will be 3 if unspecified
