@@ -6,8 +6,8 @@ cloudstream {
     // All of these properties are optional, you can safely remove them
 
     description = "Anime and Movies includes (Donghuaword)"
-    language    = "zh"
-    authors = listOf("Phisher98")
+    language    = "id"
+    authors = listOf("BetbetMiror")
 
     /**
     * Status int as the following:
