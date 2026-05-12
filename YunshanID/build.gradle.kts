@@ -6,26 +6,21 @@ plugins {
     id("com.lagradost.cloudstream3.gradle")
 }
 
-// Konfigurasi Cloudstream
 cloudstream {
-    // Gunakan setMainClass jika mainClass = tidak terbaca
-    setMainClass("com.betbet.yunshanid.YunshanIDPlugin")
+    // Gunakan sintaks ini untuk menentukan Main Class
+    mainClass = "com.betbet.yunshanid.YunshanIDPlugin"
     
-    // Gunakan properti yang didukung oleh plugin gradle cloudstream
-    name = "YunshanID"
-    description = "Donghua & Anime provider dari YunshanID"
-    authors = listOf("Betbet")
+    // Jika 'name =' error, biarkan plugin mengambil nama dari folder, 
+    // atau gunakan fungsi config seperti di bawah ini:
+    setDisplayName("YunshanID")
+    setDescription("Donghua & Anime provider dari YunshanID")
+    setAuthors(listOf("Betbet"))
+    
     language = "id"
-    
-    status = 1
-
-    tvTypes = listOf(
-        "Anime",
-        "TvSeries"
-    )
 }
 
 android {
+    // Gunakan namespace yang sama dengan package di Provider/Plugin
     namespace = "com.betbet.yunshanid"
     compileSdk = 33
 
