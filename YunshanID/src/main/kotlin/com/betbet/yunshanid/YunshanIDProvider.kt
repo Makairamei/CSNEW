@@ -27,8 +27,9 @@ class YunshanIDProvider : MainAPI() {
         request: MainPageRequest
     ): HomePageResponse {
 
-        val json = app.get("$mainUrl/donghuas")
-            .parsedSafe<List<YunshanMain>>()
+        val response = app.get("$mainUrl/donghuas").text
+
+        val json = tryParseJson<List<YunshanMain>>(response)
             ?: return newHomePageResponse(
                 request.name,
                 emptyList()
@@ -53,8 +54,9 @@ class YunshanIDProvider : MainAPI() {
 
     override suspend fun search(query: String): List<SearchResponse> {
 
-        val json = app.get("$mainUrl/donghuas")
-            .parsedSafe<List<YunshanMain>>()
+        val response = app.get("$mainUrl/donghuas").text
+
+        val json = tryParseJson<List<YunshanMain>>(response)
             ?: return emptyList()
 
         return json.filter {
