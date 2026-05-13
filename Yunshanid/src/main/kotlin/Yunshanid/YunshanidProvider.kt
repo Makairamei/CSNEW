@@ -21,10 +21,11 @@ class YunshanidProvider : MainAPI() {
         TvType.Anime
     )
 
-    // Biar gak dianggap robot, kita pake User-Agent Chrome standar
-    private val headers = mapOf(
+    // KUNCI: Headers agar tidak dianggap robot oleh Cloudflare/Server
+    private val commonHeaders = mapOf(
         "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Referer" to "$mainUrl/"
+        "Referer" to "$mainUrl/",
+        "Accept" to "*/*"
     )
 
     override val mainPage = mainPageOf(
@@ -41,8 +42,7 @@ class YunshanidProvider : MainAPI() {
             request.data.format(page)
         }
 
-        // Tambahkan headers di setiap app.get
-        val document = app.get("$mainUrl/$path", headers = headers).document
+        val document = app.get("$mainUrl/$path", headers = commonHeaders).document
         val homeList = document.select("article, .bs").mapNotNull {
             it.toSearchResult()
         }.distinctBy { it.url }
@@ -70,7 +70,7 @@ class YunshanidProvider : MainAPI() {
     }
 
     override suspend fun search(query: String): List<SearchResponse> {
-        return app.get("$mainUrl/?s=$query", headers = headers).document
+        return app.get("$mainUrl/?s=$query", headers = commonHeaders).document
             .select("article, .bs")
             .mapNotNull { it.toSearchResult() }
             .distinctBy { it.url }
@@ -82,8 +82,7 @@ class YunshanidProvider : MainAPI() {
         .trim()
 
     override suspend fun load(url: String): LoadResponse {
-        // Pancing pake referer agar link episode keluar
-        val document = app.get(url, headers = headers).document
+        val document = app.get(url, headers = commonHeaders).document
         val rawTitle = document.selectFirst("h1.entry-title")?.text() ?: "No Title"
         val title = cleanupTitle(rawTitle)
         val poster = document.selectFirst(".poster img, .thumb img")?.attr("src")
@@ -107,7 +106,6 @@ class YunshanidProvider : MainAPI() {
                 this.tags = tags
             }
         } else {
-            // Note: Cek apakah perlu .reversed() atau tidak, sesuaikan dengan urutan di web
             newTvSeriesLoadResponse(title, url, TvType.TvSeries, episodes.reversed()) {
                 this.posterUrl = poster
                 this.plot = plot
@@ -122,25 +120,26 @@ class YunshanidProvider : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        // Load link dengan header lengkap agar tidak kena block
-        val response = app.get(data, headers = headers)
-        val document = response.document
+        // Gunakan headers di sini agar link episode bisa dibuka
+        val document = app.get(data, headers = commonHeaders).document
         var found = false
         val seen = Collections.synchronizedSet(hashSetOf<String>())
 
         coroutineScope {
+            // Kita cari di semua tempat: Iframe, Mirror Option, dan tab Player
             val players = document.select("iframe, .mirror-option option, .nav-tabs li a")
+            
             players.map { element ->
                 async {
                     val src = when {
-                        element.tagName() == "iframe" -> element.attr("src")
+                        element.tagName() == "iframe" -> element.attr("src") ?: element.attr("data-src")
                         element.tagName() == "option" -> element.attr("value")
                         else -> element.attr("data-embed")
                     }
 
-                    if (src.isNotBlank() && src.startsWith("http") && seen.add(src)) {
+                    if (!src.isNullOrBlank() && src.startsWith("http") && seen.add(src)) {
                         runCatching {
-                            // Kirim referer URL episode ke extractor
+                            // Pancing extractor dengan referer URL episode
                             loadExtractor(src, data, subtitleCallback) { link ->
                                 found = true
                                 callback.invoke(link)
@@ -150,6 +149,7 @@ class YunshanidProvider : MainAPI() {
                 }
             }.awaitAll()
         }
+
         return found
     }
 }
