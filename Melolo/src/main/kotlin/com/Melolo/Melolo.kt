@@ -10,7 +10,8 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.net.URLEncoder
 
 class Melolo : MainAPI() {
-    override var mainUrl = "https://api.tmthreader.com"
+    // Ganti ke www.melolo.com karena api.tmthreader.com sering gagal resolve
+    override var mainUrl = "https://www.melolo.com"
     override var name = "Melolo😶"
     override var lang = "id"
     override val hasMainPage = true
@@ -20,9 +21,7 @@ class Melolo : MainAPI() {
 
     private val aid = "645713"
     private val catalogBase = "https://melolo-api-azure.vercel.app/api/melolo"
-
-    // Header Browser agar tidak terdeteksi bot
-    private val browserUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    private val browserUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 
     override val mainPage = mainPageOf(
         "latest" to "Terbaru",
@@ -53,7 +52,6 @@ class Melolo : MainAPI() {
                 this.posterUrl = b.thumb_url
             }
         }
-
         return newHomePageResponse(HomePageList(request.name, items), hasNext)
     }
 
@@ -74,7 +72,7 @@ class Melolo : MainAPI() {
                 newEpisode(
                     EpisodeData(
                         bookId, detail.series_id_str ?: bookId, ep.vid ?: return@mapNotNull null,
-                        ep.vid_index ?: return@mapNotNull null, detail.video_platform ?: 2 // Gunakan platform 2 untuk Web
+                        ep.vid_index ?: return@mapNotNull null, 2 // Paksa ke platform 2 (Web)
                     ).toJson()
                 ) {
                     this.name = "Episode ${ep.vid_index}"
@@ -92,7 +90,6 @@ class Melolo : MainAPI() {
     override suspend fun loadLinks(data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit): Boolean {
         val ep = tryParseJson<EpisodeData>(data) ?: return false
         
-        // Payload yang disesuaikan untuk bypass deteksi
         val body = """
             {
                 "video_id": "${ep.vid}",
@@ -113,25 +110,23 @@ class Melolo : MainAPI() {
 
         val responseText = executeWithRetry {
             rateLimitDelay(moduleName = "Melolo")
+            // Gunakan domain yang sama dengan mainUrl agar resolve-nya konsisten
             app.post(
-                "$mainUrl/novel/player/video_model/v1/?aid=$aid",
+                "https://api.tmthreader.com/novel/player/video_model/v1/?aid=$aid",
                 requestBody = body.toRequestBody("application/json".toMediaType()),
                 headers = mapOf(
                     "Content-Type" to "application/json",
                     "X-Xs-From-Web" to "true",
-                    "User-Agent" to browserUserAgent,
-                    "Origin" to "https://www.melolo.com",
-                    "Referer" to "https://www.melolo.com/"
+                    "User-Agent" to browserUA,
+                    "Origin" to mainUrl,
+                    "Referer" to "$mainUrl/"
                 )
             ).text
         }
 
-        // Cetak log untuk debug di CloudStream (Settings -> Advanced -> View Logs)
-        logDebug("MeloloResponse", "Respon: $responseText")
-
         val resp = tryParseJson<PlayerVideoModelResponse>(responseText)
         
-        // Mencari link di semua kemungkinan struktur JSON
+        // Ekstraksi link dengan fallback
         val videoUrl = resp?.data?.main_url 
             ?: resp?.data?.video_info?.main_url 
             ?: resp?.data?.video_model?.video_list?.values?.firstOrNull()?.main_url
@@ -144,8 +139,8 @@ class Melolo : MainAPI() {
             callback(
                 newExtractorLink(name, "Melolo", url, ExtractorLinkType.VIDEO) {
                     this.quality = Qualities.Unknown.value
-                    this.referer = "https://www.melolo.com/"
-                    this.headers = mapOf("User-Agent" to browserUserAgent)
+                    this.referer = "$mainUrl/"
+                    this.headers = mapOf("User-Agent" to browserUA)
                 }
             )
         }
@@ -153,38 +148,37 @@ class Melolo : MainAPI() {
         return links.isNotEmpty()
     }
 
-    // --- Private Fetchers ---
+    // --- Private Fetchers (Gunakan catalogBase agar metadata tetap aman) ---
 
     private suspend fun fetchLatest(): List<CatalogBook> = try {
-        val res = app.get("$catalogBase/latest", timeout = 30L)
+        val res = app.get("$catalogBase/latest")
         tryParseJson<CatalogLatestResponse>(res.text)?.books.orEmpty().filter { it.language.equals("id", true) }
     } catch (_: Exception) { emptyList() }
 
     private suspend fun fetchTrending(): List<CatalogBook> = try {
-        val res = app.get("$catalogBase/trending", timeout = 30L)
+        val res = app.get("$catalogBase/trending")
         tryParseJson<CatalogTrendingResponse>(res.text)?.books.orEmpty().filter { it.language.equals("id", true) }
     } catch (_: Exception) { emptyList() }
 
     private suspend fun fetchSearch(query: String, limit: Int, offset: Int): List<CatalogBook> = try {
         val url = "$catalogBase/search?query=${URLEncoder.encode(query, "UTF-8")}&limit=$limit&offset=$offset"
-        val res = app.get(url, timeout = 30L)
+        val res = app.get(url)
         tryParseJson<CatalogSearchResponse>(res.text)?.data?.search_data?.flatMap { it.books }.orEmpty().filter { it.language.equals("id", true) }
     } catch (_: Exception) { emptyList() }
 
     private suspend fun fetchSearchPage(query: String, limit: Int, offset: Int): Pair<List<CatalogBook>, Boolean> = try {
         val url = "$catalogBase/search?query=${URLEncoder.encode(query, "UTF-8")}&limit=$limit&offset=$offset"
-        val res = app.get(url, timeout = 30L)
+        val res = app.get(url)
         val resp = tryParseJson<CatalogSearchResponse>(res.text)
         (resp?.data?.search_data?.flatMap { it.books }.orEmpty().filter { it.language.equals("id", true) }) to (resp?.data?.has_more == true)
     } catch (_: Exception) { emptyList<CatalogBook>() to false }
 
     private suspend fun fetchDetail(bookId: String): CatalogVideoData {
-        val res = app.get("$catalogBase/detail/$bookId", timeout = 30L)
-        return tryParseJson<CatalogDetailResponse>(res.text)?.data?.video_data ?: throw ErrorLoadingException("Data kosong")
+        val res = app.get("$catalogBase/detail/$bookId")
+        return tryParseJson<CatalogDetailResponse>(res.text)?.data?.video_data ?: throw ErrorLoadingException("Data Detail Kosong")
     }
 
-    // --- Data Classes Perbaikan ---
-
+    // --- Data Classes ---
     data class PlayerVideoModelResponse(@JsonProperty("data") val data: PlayerVideoModelData? = null)
     data class PlayerVideoModelData(
         @JsonProperty("main_url") val main_url: String? = null,
@@ -205,5 +199,5 @@ class Melolo : MainAPI() {
     data class CatalogDetailData(@JsonProperty("video_data") val video_data: CatalogVideoData? = null)
     data class CatalogVideoData(@JsonProperty("series_id_str") val series_id_str: String? = null, @JsonProperty("series_title") val series_title: String? = null, @JsonProperty("series_intro") val series_intro: String? = null, @JsonProperty("series_cover") val series_cover: String? = null, @JsonProperty("video_list") val video_list: List<CatalogEpisode> = emptyList(), @JsonProperty("video_platform") val video_platform: Int? = null)
     data class CatalogEpisode(@JsonProperty("vid") val vid: String? = null, @JsonProperty("vid_index") val vid_index: Int? = null, @JsonProperty("cover") val cover: String? = null, @JsonProperty("disable_play") val disable_play: Boolean? = null)
-    data class EpisodeData(@JsonProperty("bookId") val bookId: String, @JsonProperty("seriesId") val seriesId: String, @JsonProperty("vid") val vid: String, @JsonProperty("episode") val episode: Int, @JsonProperty("videoPlatform") val videoPlatform: Int = 2)
+    data class EpisodeData(@JsonProperty("bookId") val bookId: String, @JsonProperty("seriesId") val seriesId: String, @JsonProperty("vid") val vid: String, @JsonProperty("episode") val episode: Int, @JsonProperty("videoPlatform") val videoPlatform: Int)
 }
