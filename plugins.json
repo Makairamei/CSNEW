@@ -195,5 +195,20 @@
         "description": "AutoEmbed TMDB-backed movie and TV catalog provider",
         "url": "https://raw.githubusercontent.com/sad25kag/BetbetMiro-Extension/master/Betbet/AutoEmbedProvider.cs3",
         "name": "AutoEmbedProvider"
-    }
+    },
+    {
+    "iconUrl": "https://sarangfilm.fit/wp-content/uploads/2023/09/cropped-popcorn-2.png",
+    "apiVersion": 1,
+    "repositoryUrl": "https://github.com/sad25kag/BetbetMiro-Extension",
+    "fileSize": 26060,
+    "status": 1,
+    "language": "id",
+    "authors": ["BetbetMiro"],
+    "tvTypes": ["AsianDrama", "TvSeries", "Movie"],
+    "version": 1,
+    "internalName": "Sarangfilm",
+    "description": "📺 Streaming Movie and TV Series",
+    "url": "https://raw.githubusercontent.com/sad25kag/BetbetMiro-Extension/master/Betbet/Sarangfilm.cs3",
+    "name": "Sarangfilm"
+  }
 ]
