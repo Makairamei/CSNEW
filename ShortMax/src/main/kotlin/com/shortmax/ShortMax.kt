@@ -21,7 +21,6 @@ class ShortMax : MainAPI() {
 
     companion object {
         private const val BASE_API_URL = "https://www.shorttv.live" 
-
         const val ENDPOINT_RECOMMEND = "$BASE_API_URL/api/v1/shortplay/recommend"
         const val ENDPOINT_NEW_RELEASE = "$BASE_API_URL/api/v1/shortplay/new"
         const val ENDPOINT_SEARCH = "$BASE_API_URL/api/v1/shortplay/search"
@@ -121,21 +120,24 @@ class ShortMax : MainAPI() {
 
                 val cleanLabel = qualityKey.replace("video_", "") + "p"
 
+                // FIX: Memindahkan referer dan quality ke dalam blok lambda {} agar sesuai aturan framework!
                 callback.invoke(
                     newExtractorLink(
                         source = this.name,
                         name = "ShortMax - $cleanLabel",
                         url = streamUrl,
-                        referer = "$mainUrl/",
-                        quality = mappedQuality,
-                        type = ExtractorLinkType.M3U8 // Format HLS otomatis dieksekusi player
-                    )
+                        type = ExtractorLinkType.M3U8
+                    ) {
+                        this.quality = mappedQuality
+                        this.referer = "$mainUrl/"
+                    }
                 )
             }
         }
         return true
     }
 
+    // --- STRUKTUR MODEL DATA KELAS ---
     data class ShortPlayListResponse(
         @JsonProperty("status") val status: String? = null,
         @JsonProperty("page") val page: Int? = null,
