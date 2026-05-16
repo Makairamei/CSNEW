@@ -17,6 +17,7 @@ class YunshanID : MainAPI() {
         const val API_BASE = "https://yunshanid.site/api"
     }
 
+    // MENU ASLI BUATAN KITA
     override val mainPage = mainPageOf(
         "latest" to "Rilisan Terbaru",
         "ongoing" to "Donghua Ongoing",
@@ -28,6 +29,7 @@ class YunshanID : MainAPI() {
         val response = app.get("$API_BASE/donghuas").text
         val items = tryParseJson<List<YunshanItem>>(response) ?: emptyList()
         
+        // FILTER ASLI BUATAN KITA
         val filteredItems = when (request.data) {
             "ongoing" -> items.filter { it.status?.contains("On-Going", true) == true }
             "completed" -> items.filter { it.status?.contains("Completed", true) == true }
@@ -58,6 +60,7 @@ class YunshanID : MainAPI() {
     override suspend fun load(url: String): LoadResponse {
         val id = url.substringAfterLast("/")
         
+        // TRIK MENGAMBIL DETAIL DARI LIST UTAMA (Ini murni ide jenius kita kemarin!)
         val response = app.get("$API_BASE/donghuas").text
         val items = tryParseJson<List<YunshanItem>>(response) ?: emptyList()
         
@@ -99,44 +102,32 @@ class YunshanID : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
+        // SISTEM TEMBAK LINK ASLI KITA
         val parts = data.split("-")
         if (parts.size < 2) return false
         val animeId = parts[0]
         val epNum = parts[1]
 
         val watchResponse = app.get("$API_BASE/watch/$animeId/$epNum").text
-        
-        // Bersihkan karakter aneh bawaan JSON (\/ atau \") agar URL terbaca utuh
-        val cleanResponse = watchResponse.replace("\\/", "/").replace("\\\"", "\"")
 
-        // REGEX SAPU JAGAT: Menangkap semua teks yang menyerupai URL valid, mengabaikan struktur JSON
-        val linkRegex = """(https?:)?//[^\s"'<>\\]+""".toRegex()
-        val foundLinks = linkRegex.findAll(cleanResponse).map { it.value }.toList()
-
+        // --- INI BAGIAN YANG KITA "CURI" SEDIKIT ---
+        // Alih-alih pakai Regex yang sering gagal, kita pakai data class JSON-nya langsung!
+        val watchData = tryParseJson<WatchResponse>(watchResponse)
         var linkFound = false
-        for (rawUrl in foundLinks) {
-            // Abaikan link yang hanya berisi gambar atau file website
-            if (rawUrl.contains(".jpg") || rawUrl.contains(".png") || rawUrl.contains(".css") || rawUrl.contains(".js")) continue
-            
-            // Tambahkan "https:" jika terpotong
-            val finalUrl = if (rawUrl.startsWith("//")) "https:$rawUrl" else rawUrl
 
-            // 1. Serahkan URL ke mesin Extractor bawaan (Okru, Dailymotion, dll)
-            loadExtractor(finalUrl, subtitleCallback, callback)
+        // Tangkap video_url utama
+        watchData?.videoUrl?.let { rawUrl ->
+            val cleanUrl = if (rawUrl.startsWith("//")) "https:$rawUrl" else rawUrl
+            loadExtractor(cleanUrl, "$mainUrl/", subtitleCallback, callback)
             linkFound = true
-            
-            // 2. Jalur Darurat: Jika link ternyata video mentah (.mp4/.m3u8), langsung putar tanpa Extractor
-            if (finalUrl.endsWith(".m3u8") || finalUrl.endsWith(".mp4")) {
-                callback.invoke(
-                    ExtractorLink(
-                        source = this.name,
-                        name = this.name,
-                        url = finalUrl,
-                        referer = mainUrl,
-                        quality = Qualities.Unknown.value,
-                        isM3u8 = finalUrl.endsWith(".m3u8")
-                    )
-                )
+        }
+
+        // Tangkap url dari server cadangan (kalau ada)
+        watchData?.servers?.forEach { server ->
+            val serverUrl = server.url ?: server.embedUrl
+            if (!serverUrl.isNullOrBlank()) {
+                val cleanUrl = if (serverUrl.startsWith("//")) "https:$serverUrl" else serverUrl
+                loadExtractor(cleanUrl, "$mainUrl/", subtitleCallback, callback)
                 linkFound = true
             }
         }
@@ -145,6 +136,7 @@ class YunshanID : MainAPI() {
     }
 }
 
+// STRUKTUR DATA ASLI KITA
 data class YunshanItem(
     val id: Int,
     val title: String,
@@ -155,4 +147,15 @@ data class YunshanItem(
     val type: String? = null,
     val genres: List<String>? = null,
     @JsonProperty("episodes_map") val episodesMap: List<Int>? = null
+)
+
+// STRUKTUR DATA CURIAN (Hanya untuk mengamankan link video)
+data class WatchResponse(
+    @JsonProperty("video_url") val videoUrl: String?,
+    val servers: List<ServerData>?
+)
+
+data class ServerData(
+    val url: String?,
+    @JsonProperty("embed_url") val embedUrl: String?
 )
