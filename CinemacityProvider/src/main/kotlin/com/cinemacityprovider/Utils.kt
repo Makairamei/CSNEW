@@ -1,4 +1,4 @@
-package com.Cinemacity
+package com.cinemacityprovider
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.google.gson.annotations.SerializedName
@@ -6,19 +6,15 @@ import com.google.gson.annotations.SerializedName
 data class ResponseData(
     val meta: Meta? = null
 ) {
-
     data class Meta(
         val id: String? = null,
         val type: String? = null,
         val name: String? = null,
-        @param:JsonProperty("imdb_id")
+        @JsonProperty("imdb_id")
         val imdbId: String? = null,
-
         val slug: String? = null,
-
         val director: List<String>? = null,
         val writer: List<String>? = null,
-
         val description: String? = null,
         val year: String? = null,
         val releaseInfo: String? = null,
@@ -29,12 +25,10 @@ data class ResponseData(
         val imdbRating: String? = null,
         val genres: List<String>? = null,
         val poster: String? = null,
-        @param:JsonProperty("_rawPosterUrl")
+        @JsonProperty("_rawPosterUrl")
         val rawPosterUrl: String? = null,
-
         val background: String? = null,
         val logo: String? = null,
-
         val videos: List<EpisodeDetails>? = null,
         val trailers: List<Trailer>? = null,
         val trailerStreams: List<TrailerStream>? = null,
@@ -43,7 +37,6 @@ data class ResponseData(
         @SerializedName("app_extras")
         val appExtras: AppExtras? = null
     ) {
-
         data class BehaviorHints(
             val defaultVideoId: Any? = null,
             val hasScheduledVideos: Boolean? = null
