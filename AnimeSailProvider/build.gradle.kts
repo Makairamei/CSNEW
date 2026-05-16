@@ -1,5 +1,5 @@
 // use an integer for version numbers
-version = 3
+version = 2
 
 
 cloudstream {
@@ -7,7 +7,7 @@ cloudstream {
     // All of these properties are optional, you can safely remove them
 
     // description = "Lorem Ipsum"
-    authors = listOf("BetbetMiro")
+     authors = listOf("BetbetMiro")
 
     /**
      * Status int as the following:
@@ -23,8 +23,5 @@ cloudstream {
         "OVA",
     )
 
-
-    iconUrl = "https://icons.duckduckgo.com/ip3/154.26.137.28.ico"
-
-    isCrossPlatform = true
+    iconUrl = "https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://154.26.137.28&size=%size%"
 }
