@@ -26,22 +26,38 @@ class ShortMax : MainAPI() {
         const val ENDPOINT_DETAIL = "$BASE_API_URL/gapi/v1/movie/detail"
         const val ENDPOINT_VIDEO = "$BASE_API_URL/gapi/v1/movie/episodePlayInfo"
 
-        // 🛡️ DYNAMIC WEB GATEWAY HEADERS (Hasil Sadapan Mode Web Kamu!)
+        // Headers hasil sadapan mode web kamu
         fun getWebHeaders(): Map<String, String> {
             val currentTime = System.currentTimeMillis().toString()
             return mapOf(
                 "User-Agent" to "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36",
                 "Accept" to "application/json, text/plain, */*",
                 "Content-Type" to "application/json",
-                "s-platform" to "3",       // Platform H5 / Web resmi
-                "s-language" to "id",      // Mengunci Cluster DB Bahasa Indonesia 🇮🇩
+                "s-platform" to "3",
+                "s-language" to "id",
                 "s-version" to "1.0.0",
                 "s-channel" to "web",
-                "s-uuid" to "c99da9f1-5636-4bc0-9e9a-11992a82b2ca", // Sidik jari browser tiruan
-                "s-timestamp" to currentTime,                       // Ketukan milidetik dinamis
+                "s-timestamp" to currentTime,
                 "Origin" to "https://www.shorttv.live",
                 "Referer" to "https://www.shorttv.live/"
             )
+        }
+
+        // 🛡️ REGEX ENGINE: Pemanen Data Cadangan (Anti Gagal Struktur JSON)
+        fun harvestItemsWithRegex(rawText: String): List<ShortPlayItem> {
+            val items = mutableListOf<ShortPlayItem>()
+            // Mencari pola shortPlayId, name, dan cover di dalam teks mentah
+            val pattern = """\"shortPlayId\"\s*:\s*(\d+)[^}]*?\"name\"\s*:\s*\"([^\"]+)\"[^}]*?\"cover\"\s*:\s*\"([^\"]+)\"""".toRegex()
+            
+            pattern.findAll(rawText).forEach { match ->
+                val id = match.groups[1]?.value?.toIntOrNull()
+                val name = match.groups[2]?.value
+                val cover = match.groups[3]?.value?.replace("\\/", "/") // Bersihkan escape slash URL
+                if (id != null && !name.isNullOrBlank()) {
+                    items.add(ShortPlayItem(shortPlayId = id, name = name, cover = cover))
+                }
+            }
+            return items
         }
     }
 
@@ -50,18 +66,20 @@ class ShortMax : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        // Eksekusi POST Engine dengan menyuntikkan dokumen perizinan Web Mode
         val responseText = app.post(
             request.data, 
             headers = getWebHeaders(),
-            json = mapOf(
-                "page" to page,
-                "pageSize" to 20
-            )
+            json = mapOf("page" to page, "pageSize" to 20)
         ).text
         
+        // Coba pakai Parser Formal (Jackson)
         val json = tryParseJson<ShortPlayListResponse>(responseText)
-        val rawItems = json?.results ?: json?.data?.results ?: json?.data?.list ?: emptyList()
+        var rawItems = json?.results ?: json?.data?.results ?: json?.data?.list ?: emptyList()
+
+        // 🚨 FALLBACK: Jika Jackson gagal/kosong, aktifkan Pemanen Teks Mentah (Regex)!
+        if (rawItems.isEmpty()) {
+            rawItems = harvestItemsWithRegex(responseText)
+        }
 
         val homeResults = rawItems.mapNotNull { item ->
             val id = item.shortPlayId ?: return@mapNotNull null
@@ -70,7 +88,7 @@ class ShortMax : MainAPI() {
             }
         }.distinctBy { it.url }
 
-        val hasNextPage = json?.isEnd == false || json?.data?.isEnd == false
+        val hasNextPage = json?.isEnd == false || json?.data?.isEnd == false || homeResults.isNotEmpty()
         return newHomePageResponse(HomePageList(request.name, homeResults), hasNextPage)
     }
 
@@ -81,15 +99,16 @@ class ShortMax : MainAPI() {
         val responseText = app.post(
             ENDPOINT_SEARCH,
             headers = getWebHeaders(),
-            json = mapOf(
-                "keyword" to cleanQuery,
-                "page" to 1,
-                "pageSize" to 20
-            )
+            json = mapOf("keyword" to cleanQuery, "page" to 1, "pageSize" to 20)
         ).text
         
         val json = tryParseJson<ShortPlayListResponse>(responseText)
-        val rawItems = json?.results ?: json?.data?.results ?: json?.data?.list ?: emptyList()
+        var rawItems = json?.results ?: json?.data?.results ?: json?.data?.list ?: emptyList()
+
+        // 🚨 FALLBACK PENCARIAN:
+        if (rawItems.isEmpty()) {
+            rawItems = harvestItemsWithRegex(responseText)
+        }
 
         return rawItems.mapNotNull { item ->
             val id = item.shortPlayId ?: return@mapNotNull null
@@ -110,6 +129,7 @@ class ShortMax : MainAPI() {
         ).text
         
         val detailData = tryParseJson<ShortPlayDetailResponse>(responseText)?.data 
+            ?: tryParseJson<ShortPlayDetailAltResponse>(responseText)?.data
             ?: throw ErrorLoadingException("Gagal Memuat Detail Konten")
 
         val title = detailData.shortPlayName?.takeIf { it.isNotBlank() } ?: "ShortDrama"
@@ -145,10 +165,7 @@ class ShortMax : MainAPI() {
         val responseText = app.post(
             ENDPOINT_VIDEO,
             headers = getWebHeaders(),
-            json = mapOf(
-                "shortPlayId" to playId,
-                "episodeNum" to epNum
-            )
+            json = mapOf("shortPlayId" to playId, "episodeNum" to epNum)
         ).text
         
         val videoObj = tryParseJson<VideoPlayResponse>(responseText)?.episode ?: return false
@@ -184,9 +201,6 @@ class ShortMax : MainAPI() {
     // --- STRUKTUR MODEL DATA KELAS ---
     data class ShortPlayListResponse(
         @JsonProperty("status") val status: String? = null,
-        @JsonProperty("page") val page: Int? = null,
-        @JsonProperty("isEnd") val isEnd: Boolean? = null,
-        @JsonProperty("total") val total: Int? = null,
         @JsonProperty("results") val results: List<ShortPlayItem>? = null,
         @JsonProperty("data") val data: NestedListDataHub? = null
     )
@@ -200,16 +214,16 @@ class ShortMax : MainAPI() {
     data class ShortPlayItem(
         @JsonProperty("shortPlayId") val shortPlayId: Int? = null,
         @JsonProperty("name") val name: String? = null,
-        @JsonProperty("cover") val cover: String? = null,
-        @JsonProperty("totalEpisodes") val totalEpisodes: Int? = null,
-        @JsonProperty("summary") val summary: String? = null,
-        @JsonProperty("label") val label: String? = null,
-        @JsonProperty("horizontalCover") val horizontalCover: String? = null,
-        @JsonProperty("genre") val genre: List<String>? = null
+        @JsonProperty("cover") val cover: String? = null
     )
 
     data class ShortPlayDetailResponse(
         @JsonProperty("status") val status: String? = null,
+        @JsonProperty("data") val data: DetailDataHub? = null
+    )
+    
+    data class ShortPlayDetailAltResponse(
+        @JsonProperty("code") val code: Int? = null,
         @JsonProperty("data") val data: DetailDataHub? = null
     )
 
@@ -223,19 +237,15 @@ class ShortMax : MainAPI() {
     )
 
     data class LabelItem(
-        @JsonProperty("id") val id: Long? = null,
         @JsonProperty("labelName") val labelName: String? = null
     )
 
     data class VideoPlayResponse(
         @JsonProperty("status") val status: String? = null,
-        @JsonProperty("shortPlayId") val shortPlayId: Int? = null,
         @JsonProperty("episode") val episode: EpisodeStreamContainer? = null
     )
 
     data class EpisodeStreamContainer(
-        @JsonProperty("episodeNum") val episodeNum: Int? = null,
-        @JsonProperty("id") val id: Long? = null,
         @JsonProperty("videoUrl") val videoUrl: Map<String, String>? = null
     )
 
