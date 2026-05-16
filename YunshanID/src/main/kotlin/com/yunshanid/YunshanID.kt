@@ -17,7 +17,7 @@ class YunshanID : MainAPI() {
         const val API_BASE = "https://yunshanid.site/api"
     }
 
-    // MENU ASLI BUATAN KITA
+    // --- MENU & KATEGORI ASLI BUATAN KAMU ---
     override val mainPage = mainPageOf(
         "latest" to "Rilisan Terbaru",
         "ongoing" to "Donghua Ongoing",
@@ -29,7 +29,7 @@ class YunshanID : MainAPI() {
         val response = app.get("$API_BASE/donghuas").text
         val items = tryParseJson<List<YunshanItem>>(response) ?: emptyList()
         
-        // FILTER ASLI BUATAN KITA
+        // --- FILTER ASLI BUATAN KAMU ---
         val filteredItems = when (request.data) {
             "ongoing" -> items.filter { it.status?.contains("On-Going", true) == true }
             "completed" -> items.filter { it.status?.contains("Completed", true) == true }
@@ -60,34 +60,36 @@ class YunshanID : MainAPI() {
     override suspend fun load(url: String): LoadResponse {
         val id = url.substringAfterLast("/")
         
-        // TRIK MENGAMBIL DETAIL DARI LIST UTAMA (Ini murni ide jenius kita kemarin!)
-        val response = app.get("$API_BASE/donghuas").text
-        val items = tryParseJson<List<YunshanItem>>(response) ?: emptyList()
-        
-        val item = items.find { it.id.toString() == id } 
+        // Memakai API Detail agar kita mendapatkan link video yang siap putar
+        val response = app.get("$API_BASE/donghua/$id").text
+        val detail = tryParseJson<YunshanDetail>(response) 
             ?: throw ErrorLoadingException("Detail Donghua tidak ditemukan")
 
-        val title = item.title
-        val poster = item.posterUrl ?: item.poster
-        val description = item.synopsis
-        val tags = item.genres
+        val title = detail.title ?: ""
+        val poster = detail.posterUrl ?: detail.poster ?: ""
+        val description = detail.synopsis
+        val tags = detail.genres
+        val tvType = if (detail.type?.contains("Movie", true) == true) TvType.Movie else TvType.Anime
 
-        val tvType = if (item.type?.contains("Movie", true) == true) TvType.Movie else TvType.TvSeries
+        // Membungkus data episode dan link video ke dalam tombol
+        val episodes = detail.episodes?.map { ep ->
+            newEpisode(ep) {
+                this.name = "Episode ${ep.epNumber}"
+                this.episode = ep.epNumber
+                // INI KUNCI UTAMANYA: Simpan JSON yang berisi link video ke dalam memori tombol
+                this.data = mapper.writeValueAsString(ep)
+            }
+        }?.sortedByDescending { it.episode } ?: emptyList()
 
         if (tvType == TvType.Movie) {
-            return newMovieLoadResponse(title, url, TvType.Movie, "$id-1") {
+            // FIX: Untuk Movie, kita harus mengambil data JSON dari episode pertama agar videonya ada
+            val movieData = episodes.firstOrNull()?.data ?: ""
+            return newMovieLoadResponse(title, url, TvType.Movie, movieData) {
                 this.posterUrl = poster
                 this.plot = description
                 this.tags = tags
             }
         } else {
-            val episodes = item.episodesMap?.sorted()?.map { epNum ->
-                newEpisode("$id-$epNum") {
-                    this.name = "Episode $epNum"
-                    this.episode = epNum
-                }
-            } ?: emptyList()
-
             return newTvSeriesLoadResponse(title, url, TvType.Anime, episodes) {
                 this.posterUrl = poster
                 this.plot = description
@@ -102,28 +104,19 @@ class YunshanID : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        // SISTEM TEMBAK LINK ASLI KITA
-        val parts = data.split("-")
-        if (parts.size < 2) return false
-        val animeId = parts[0]
-        val epNum = parts[1]
-
-        val watchResponse = app.get("$API_BASE/watch/$animeId/$epNum").text
-
-        // --- INI BAGIAN YANG KITA "CURI" SEDIKIT ---
-        // Alih-alih pakai Regex yang sering gagal, kita pakai data class JSON-nya langsung!
-        val watchData = tryParseJson<WatchResponse>(watchResponse)
+        // Membaca kembali data JSON dari tombol yang diklik
+        val ep = tryParseJson<EpisodeData>(data) ?: return false
         var linkFound = false
 
-        // Tangkap video_url utama
-        watchData?.videoUrl?.let { rawUrl ->
-            val cleanUrl = if (rawUrl.startsWith("//")) "https:$rawUrl" else rawUrl
+        // 1. Jalankan Server Utama (Okru)
+        ep.videoUrl?.let { url ->
+            val cleanUrl = if (url.startsWith("//")) "https:$url" else url
             loadExtractor(cleanUrl, "$mainUrl/", subtitleCallback, callback)
             linkFound = true
         }
 
-        // Tangkap url dari server cadangan (kalau ada)
-        watchData?.servers?.forEach { server ->
+        // 2. Jalankan Server Cadangan
+        ep.servers?.forEach { server ->
             val serverUrl = server.url ?: server.embedUrl
             if (!serverUrl.isNullOrBlank()) {
                 val cleanUrl = if (serverUrl.startsWith("//")) "https:$serverUrl" else serverUrl
@@ -136,26 +129,37 @@ class YunshanID : MainAPI() {
     }
 }
 
-// STRUKTUR DATA ASLI KITA
+// --- STRUKTUR DATA BASE ---
+
 data class YunshanItem(
     val id: Int,
     val title: String,
-    val synopsis: String? = null,
     @JsonProperty("poster_url") val posterUrl: String? = null,
     val poster: String? = null,
     val status: String? = null,
-    val type: String? = null,
-    val genres: List<String>? = null,
-    @JsonProperty("episodes_map") val episodesMap: List<Int>? = null
+    val type: String? = null
 )
 
-// STRUKTUR DATA CURIAN (Hanya untuk mengamankan link video)
-data class WatchResponse(
+data class YunshanDetail(
+    val id: Int?,
+    val title: String?,
+    @JsonProperty("poster_url") val posterUrl: String?,
+    val poster: String?,
+    val synopsis: String?,
+    val type: String?,
+    val genres: List<String>?,
+    val episodes: List<EpisodeData>?
+)
+
+data class EpisodeData(
+    val id: Int?,
+    @JsonProperty("ep_number") val epNumber: Int?,
     @JsonProperty("video_url") val videoUrl: String?,
     val servers: List<ServerData>?
 )
 
 data class ServerData(
+    val name: String?,
     val url: String?,
     @JsonProperty("embed_url") val embedUrl: String?
 )
