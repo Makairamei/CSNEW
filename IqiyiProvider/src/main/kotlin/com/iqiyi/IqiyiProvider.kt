@@ -1,11 +1,13 @@
-package com.lagradost.cloudstream3.movieproviders
+package com.iqiyi
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.Qualities
-import com.lagradost.cloudstream3.utils.Extensions.toQueryParams
+import com.lagradost.cloudstream3.utils.newEpisode
+import com.lagradost.cloudstream3.utils.newExtractorLink
+import java.net.URLEncoder
 
 class IqiyiProvider : MainAPI() {
     override var mainUrl = "https://www.iq.com"
@@ -16,7 +18,6 @@ class IqiyiProvider : MainAPI() {
     override val supportedTypes = setOf(TvType.TvSeries, TvType.Movie, TvType.Anime)
 
     companion object {
-        // Gabungan Reverse Proxy Gateway & Base Routing dari Hasil Bedah Bundel JS
         private const val API_BASE = "https://intl-api.iq.com/3f4/pcw-api.iq.com"
         
         private val baseHeaders = mapOf(
@@ -25,28 +26,32 @@ class IqiyiProvider : MainAPI() {
             "Accept" to "application/json, text/plain, */*"
         )
 
-        // Inject otomatis parameter konstan platformId=3 (PC Web Client)
-        private fun getIqiyiParams(extra: Map<String, String> = emptyMap()): String {
-            val default = mapOf(
+        // Solusi Mandiri: Membuat URL builder sendiri agar bebas dari error 'toQueryParams' core CloudStream
+        private fun buildIqiyiUrl(endpoint: String, extra: Map<String, String> = emptyMap()): String {
+            val defaultParams = mapOf(
                 "platformId" to "3",
                 "lang" to "id_id",
                 "mod" to "id"
             )
-            return (default + extra).toQueryParams()
+            val allParams = defaultParams + extra
+            val queryString = allParams.map { 
+                "${it.key}=${URLEncoder.encode(it.value, "UTF-8")}" 
+            }.joinToString("&")
+            
+            return "$API_BASE$endpoint?$queryString"
         }
     }
 
     // ==================== 1. SEARCH / PENCARIAN ====================
     override suspend fun search(query: String): List<SearchResponse> {
-        // Menggunakan endpoint /api/search2 (Variabel R)
-        val searchUrl = "$API_BASE/api/search2?${getIqiyiParams(mapOf("k_word" to query, "pageNum" to "1", "pageSize" to "20"))}"
+        val searchUrl = buildIqiyiUrl("/api/search2", mapOf("k_word" to query, "pageNum" to "1", "pageSize" to "20"))
         val rawResponse = app.get(searchUrl, headers = baseHeaders).text
         
         val searchData = parseJson<IqiyiSearchResponse>(rawResponse)
         return searchData.data?.list?.map { item ->
             newTvSeriesSearchResponse(
                 name = item.name ?: "",
-                url = item.albumIdStr ?: "", // albumIdStr dilempar sebagai acuan load()
+                url = item.albumIdStr ?: "",
                 type = TvType.TvSeries
             ) {
                 this.posterUrl = item.pic
@@ -54,25 +59,22 @@ class IqiyiProvider : MainAPI() {
         } ?: emptyList()
     }
 
-    // ==================== 2. LOAD / DETAIL & EPISODE LIST ====================
+    // ==================== 2. LOAD / DETAIL HALAMAN ====================
     override suspend fun load(url: String): LoadResponse {
-        // Menggunakan endpoint /api/v2/episode-list-paging (Variabel s) untuk menarik semua baris eps
-        val episodeListUrl = "$API_BASE/api/v2/episode-list-paging?${getIqiyiParams(mapOf("albumId" to url, "page_num" to "1", "page_size" to "100"))}"
+        val episodeListUrl = buildIqiyiUrl("/api/v2/episode-list-paging", mapOf("albumId" to url, "page_num" to "1", "page_size" to "100"))
         val rawEpisodes = app.get(episodeListUrl, headers = baseHeaders).text
         
         val pageResponse = parseJson<IqiyiEpisodePageResponse>(rawEpisodes)
         
-        // Buat list episodenya secara dinamis berdasarkan data array riil dari iQIYI
+        // SOLUSI ERROR 4: Menggunakan 'newEpisode' builder pattern terbaru
         val episodes = pageResponse.data?.list?.map { ep ->
-            Episode(
-                data = ep.qipuIdStr ?: "", // Lempar qipuIdStr unik per episode ke loadLinks()
-                name = ep.name ?: "Episode ${ep.order}",
-                episode = ep.order ?: 1,
-                posterUrl = ep.posterPic
-            )
+            newEpisode(ep.qipuIdStr ?: "") {
+                this.name = ep.name ?: "Episode ${ep.order}"
+                this.episode = ep.order
+                this.posterUrl = ep.posterPic
+            }
         } ?: emptyList()
 
-        // Ambil judul dan sinopsis dari item pertama atau fallback
         val firstItem = pageResponse.data?.list?.firstOrNull()
         val albumTitle = firstItem?.albumName ?: "iQIYI Series"
         val albumPlot = firstItem?.albumDesc ?: ""
@@ -89,20 +91,18 @@ class IqiyiProvider : MainAPI() {
         }
     }
 
-    // ==================== 3. EXTRACTOR / VIDEO LINK PLAYBACK ====================
+    // ==================== 3. EXTRACTOR / PLAYER LINKS ====================
     override suspend fun loadLinks(
-        data: String, // Berisi qipuIdStr per episode hasil lemparan load()
+        data: String,
         isCaster: Boolean,
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        // Menggunakan endpoint /api/pvvp (Variabel Y - Page Video View Play)
-        val vmsUrl = "$API_BASE/api/pvvp?${getIqiyiParams(mapOf("tvid" to data, "bid" to "300"))}"
+        val vmsUrl = buildIqiyiUrl("/api/pvvp", mapOf("tvid" to data, "bid" to "300"))
         val rawPlayerResponse = app.get(vmsUrl, headers = baseHeaders).text
         
         val playerResult = parseJson<IqiyiPlayerResponse>(rawPlayerResponse)
         
-        // Ekstraksi fallback Multi-CDN (Edge, Zenlayer, Akamai) yang berhasil kita bedah tempo hari
         playerResult.data?.streamList?.forEach { stream ->
             val videoUrl = stream.secureUrl ?: return@forEach
             val cdnName = stream.cdnProvider ?: "iqiyi_edge"
@@ -115,8 +115,9 @@ class IqiyiProvider : MainAPI() {
                 else -> Qualities.Unknown.value
             }
 
+            // SOLUSI ERROR 5: Menggunakan 'newExtractorLink' factory method terbaru
             callback.invoke(
-                ExtractorLink(
+                newExtractorLink(
                     source = "iQIYI - ${cdnName.uppercase()}",
                     name = "iQIYI Stream Player",
                     url = videoUrl,
@@ -130,7 +131,7 @@ class IqiyiProvider : MainAPI() {
     }
 }
 
-// ==================== DATA MODELS (JACKSON PARSING) ====================
+// ==================== DATA MODELS ====================
 data class IqiyiSearchResponse(@JsonProperty("data") val data: IqiyiSearchData? = null)
 data class IqiyiSearchData(@JsonProperty("list") val list: List<IqiyiSearchItem>? = null)
 data class IqiyiSearchItem(
