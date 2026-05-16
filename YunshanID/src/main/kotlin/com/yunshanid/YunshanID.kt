@@ -104,30 +104,44 @@ class YunshanID : MainAPI() {
         val animeId = parts[0]
         val epNum = parts[1]
 
-        // 1. Ambil respon JSON dari API
         val watchResponse = app.get("$API_BASE/watch/$animeId/$epNum").text
-
-        // 2. Tangkap nilai dari "video_url" menggunakan Regex presisi
-        val urlRegex = """"video_url"\s*:\s*"([^"]+)"""".toRegex()
-        val match = urlRegex.find(watchResponse)
         
-        // Ambil link mentahnya (misal: //ok.ru/videoembed/...)
-        val rawUrl = match?.groupValues?.get(1) ?: return false
-        
-        // 3. Bersihkan pelindung garis miring (\/) jika ada
-        val cleanUrl = rawUrl.replace("\\/", "/")
+        // Bersihkan karakter aneh bawaan JSON (\/ atau \") agar URL terbaca utuh
+        val cleanResponse = watchResponse.replace("\\/", "/").replace("\\\"", "\"")
 
-        // 4. Tambahkan "https:" jika link hanya diawali "//"
-        val finalUrl = if (cleanUrl.startsWith("//")) {
-            "https:$cleanUrl"
-        } else {
-            cleanUrl
+        // REGEX SAPU JAGAT: Menangkap semua teks yang menyerupai URL valid, mengabaikan struktur JSON
+        val linkRegex = """(https?:)?//[^\s"'<>\\]+""".toRegex()
+        val foundLinks = linkRegex.findAll(cleanResponse).map { it.value }.toList()
+
+        var linkFound = false
+        for (rawUrl in foundLinks) {
+            // Abaikan link yang hanya berisi gambar atau file website
+            if (rawUrl.contains(".jpg") || rawUrl.contains(".png") || rawUrl.contains(".css") || rawUrl.contains(".js")) continue
+            
+            // Tambahkan "https:" jika terpotong
+            val finalUrl = if (rawUrl.startsWith("//")) "https:$rawUrl" else rawUrl
+
+            // 1. Serahkan URL ke mesin Extractor bawaan (Okru, Dailymotion, dll)
+            loadExtractor(finalUrl, subtitleCallback, callback)
+            linkFound = true
+            
+            // 2. Jalur Darurat: Jika link ternyata video mentah (.mp4/.m3u8), langsung putar tanpa Extractor
+            if (finalUrl.endsWith(".m3u8") || finalUrl.endsWith(".mp4")) {
+                callback.invoke(
+                    ExtractorLink(
+                        source = this.name,
+                        name = this.name,
+                        url = finalUrl,
+                        referer = mainUrl,
+                        quality = Qualities.Unknown.value,
+                        isM3u8 = finalUrl.endsWith(".m3u8")
+                    )
+                )
+                linkFound = true
+            }
         }
 
-        // 5. Lempar link matang ke mesin pemutar video (Extractor)
-        loadExtractor(finalUrl, subtitleCallback, callback)
-
-        return true
+        return linkFound
     }
 }
 
