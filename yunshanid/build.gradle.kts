@@ -1,11 +1,9 @@
-plugins {
-    kotlin("jvm") version "1.9.0"
-}
-
 repositories {
     mavenCentral()
+    google()
 }
 
 dependencies {
+    // Cloudstream core (wajib)
     compileOnly("com.github.lagradost:cloudstream3:pre-release")
 }
