@@ -25,8 +25,11 @@ open class DutaMovie : MainAPI() {
     override var name = "DutaMovie🎉"
     override val hasMainPage = true
     override var lang = "id"
+    
+    // PERBAIKAN: Menambahkan CustomMedia ke supportedTypes agar drop-down channel kustom aktif
     override val supportedTypes =
-            setOf(TvType.Movie, TvType.TvSeries, TvType.Anime, TvType.AsianDrama)
+            setOf(TvType.Movie, TvType.TvSeries, TvType.Anime, TvType.AsianDrama, TvType.CustomMedia)
+            
     private val fallbackMainUrl = "https://www.seosaja.com"
     private val rewriteHosts = setOf("simplycufflinks.com", "www.simplycufflinks.com")
     private val allowedHosts = rewriteHosts + setOf("www.seosaja.com", "seosaja.com")
@@ -36,8 +39,14 @@ open class DutaMovie : MainAPI() {
                     "category/box-office/page/%d/" to "Box Office",
                     "category/serial-tv/page/%d/" to "Serial TV",
                     "category/animation/page/%d/" to "Animasi",
-                    "country/korea/page/%d/" to "Serial TV Korea",
+                    "country/korea/page/%d/" to "Drama Korea",
+                    "country/west/page/%d/" to "Drama Barat",
+                    "country/china/page/%d/" to "Drama China",
                     "country/indonesia/page/%d/" to "Serial TV Indonesia",
+                    "country/india/page/%d/" to "Film India",
+                    "country/japan/page/%d/" to "Film Jepang",
+                    "country/thailand/page/%d/" to "Drama Thailand",
+                    "category/anime-sub-indo/page/%d/" to "Anime",
             )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
@@ -100,20 +109,36 @@ open class DutaMovie : MainAPI() {
                 selectFirst("div.gmr-numbeps > span, .gmr-posttype-item") != null ||
                 text().contains("TV Show", true) ||
                 Regex("""\bS\d+\s*E""", RegexOption.IGNORE_CASE).containsMatchIn(text())
-        
-        // Penentuan tipe yang lebih spesifik untuk Drama Korea / Drama Asia
+
+        // PERBAIKAN SELEKSI CHANNEL: Mengubah tipe ke CustomMedia secara dinamis berdasarkan data negara
+        var customChannelName: String? = null
         val tvType = if (isSeries) {
-            if (href.contains("korea") || title.contains("korea", ignoreCase = true)) TvType.AsianDrama 
-            else TvType.TvSeries
+            when {
+                href.contains("korea") || title.contains("korea", ignoreCase = true) -> TvType.AsianDrama
+                href.contains("china") || title.contains("china", ignoreCase = true) -> { customChannelName = "China"; TvType.CustomMedia }
+                href.contains("thailand") || title.contains("thailand", ignoreCase = true) -> { customChannelName = "Thailand"; TvType.CustomMedia }
+                href.contains("indonesia") || title.contains("indonesia", ignoreCase = true) -> { customChannelName = "Indonesia"; TvType.CustomMedia }
+                href.contains("anime") || title.contains("anime", ignoreCase = true) -> TvType.Anime
+                else -> TvType.TvSeries
+            }
         } else {
-            TvType.Movie
+            when {
+                href.contains("anime") || title.contains("anime", ignoreCase = true) -> TvType.Anime
+                href.contains("india") || title.contains("india", ignoreCase = true) -> { customChannelName = "India"; TvType.CustomMedia }
+                href.contains("japan") || title.contains("japan", ignoreCase = true) -> { customChannelName = "Japan"; TvType.CustomMedia }
+                else -> TvType.Movie
+            }
         }
 
-        return if (tvType == TvType.TvSeries || tvType == TvType.AsianDrama) {
+        return if (tvType == TvType.TvSeries || tvType == TvType.AsianDrama || tvType == TvType.Anime || tvType == TvType.CustomMedia) {
             newTvSeriesSearchResponse(title, href, tvType) {
                 this.posterUrl = posterUrl
                 if (quality.isNotBlank()) addQuality(quality)
                 this.score = Score.from10(ratingText?.toDoubleOrNull())
+                // Menyuntikkan nama channel kustom ke Cloudstream dashboard jika tipenya CustomMedia
+                if (tvType == TvType.CustomMedia && customChannelName != null) {
+                    this.name = "$title ($customChannelName)"
+                }
             }
         } else {
             newMovieSearchResponse(title, href, TvType.Movie) {
@@ -298,9 +323,6 @@ open class DutaMovie : MainAPI() {
         .select("article.item.col-md-20")
         .mapNotNull { it.toRecommendResult() }
 
-        // =========================
-        //  MOVIE
-        // =========================
         if (tvType == TvType.Movie) {
             return newMovieLoadResponse(title, url, TvType.Movie, url) {
                 this.posterUrl = poster
@@ -315,9 +337,6 @@ open class DutaMovie : MainAPI() {
             }
         }
 
-        // =========================
-        //  TV SERIES MODE
-        // =========================
         val seriesUrl =
             document.selectFirst("a.button.button-shadow.active")?.attr("href")?.let {
                 normalizeUrl(it, mainUrl)?.rewriteToMainHost()
@@ -452,8 +471,14 @@ open class DutaMovie : MainAPI() {
                     "Box Office" -> "genre/box-office/page/%d"
                     "Serial TV" -> "genre/serial-tv/page/%d"
                     "Animasi" -> "genre/animation/page/%d"
-                    "Serial TV Korea" -> "country/korea/page/%d"
+                    "Drama Korea" -> "country/korea/page/%d"
+                    "Drama Barat" -> "country/west/page/%d"
+                    "Drama China" -> "country/china/page/%d"
                     "Serial TV Indonesia" -> "country/indonesia/page/%d"
+                    "Film India" -> "country/india/page/%d"
+                    "Film Jepang" -> "country/japan/page/%d"
+                    "Drama Thailand" -> "country/thailand/page/%d"
+                    "Anime" -> "category/anime-sub-indo/page/%d"
                     else -> "genre/box-office/page/%d"
                 }
         val fixedPath = if (page <= 1) path.replace("/page/%d", "") else path.format(page)
