@@ -1,9 +1,8 @@
 // use an integer for version numbers
-version = 2
-
+version = 25
 
 cloudstream {
-    description = "(Multi-Lang/Audio)"
+    description = "Cinema City. (Multi-Lang/Audio)"
     authors = listOf("BetbetMiro")
 
     /**
@@ -18,9 +17,10 @@ cloudstream {
     tvTypes = listOf(
         "Movie",
         "TvSeries",
+        "Cartoon"
     )
     language = "id"
-    //iconUrl = "https://raw.githubusercontent.com/phisher98/TVVVV/refs/heads/main/Icons/Cinemacity.png"
+    iconUrl = "https://i.imgur.com/A87j6ue.png"
 
     isCrossPlatform = false
 }
