@@ -1,6 +1,5 @@
 package com.Donghuastream
 
-
 import com.lagradost.api.Log
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
@@ -26,125 +25,73 @@ import com.lagradost.cloudstream3.utils.getQualityFromName
 import com.lagradost.cloudstream3.utils.httpsify
 import com.lagradost.cloudstream3.utils.loadExtractor
 import com.lagradost.cloudstream3.utils.newExtractorLink
-import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
 
 open class Donghuastream : MainAPI() {
+    
     companion object {
         var context: android.content.Context? = null
     }
 
-    override var mainUrl              = "https://donghuastream.org"
-    override var name                 = "Donghuastream🎡"
-    override val hasMainPage          = true
-    override var lang                 = "id"
-    override val hasDownloadSupport   = true
-    override val supportedTypes       = setOf(TvType.Anime)
-
+    override var mainUrl = "https://donghuastream.cc"
+    override var name = "Donghuastream"
+    override val hasMainPage = true
+    override var lang = "id"
+    override val hasDownloadSupport = true
+    override val supportedTypes = setOf(TvType.Anime)
 
     override val mainPage = mainPageOf(
-        "anime/?status=&type=&order=update&page=" to "Recently Updated",
-        "anime/?status=completed&type=&order=update" to "Completed",
-        "anime/?status=&type=special&sub=&order=update" to "Special Anime",
+        "donghua/?status=&type=&order=update&page=" to "Recently Updated",
+        "donghua/?status=completed&type=&order=update&page=" to "Completed",
+        "donghua/?status=&type=&order=popular&page=" to "Popular",
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        context?.let { StarPopupHelper.showStarPopupIfNeeded(it) }
-        val document = app.get("$mainUrl/${request.data}$page").document
-        val home     = document.select("div.listupd > article").mapNotNull { it.toSearchResult() }
-
-        return newHomePageResponse(
-            list    = HomePageList(
-                name               = request.name,
-                list               = home,
-                isHorizontalImages = false
-            ),
-            hasNext = true
-        )
+        val url = if (request.data.contains("page=")) {
+            "$mainUrl/${request.data}$page"
+        } else {
+            "$mainUrl/${request.data}/page/$page/"
+        }
+        val document = app.get(url).document
+        val home = document.select("div.listupd article.bs, div.listupd div.bs, .listupd .chor").mapNotNull {
+            it.toSearchResult()
+        }
+        return newHomePageResponse(request.name, home)
     }
 
-    private fun Element.toSearchResult(): SearchResponse {
-        val title     = this.select("div.bsx > a").attr("title")
-        val href      = fixUrl(this.select("div.bsx > a").attr("href"))
-        val posterUrl = fixUrlNull(this.select("div.bsx a img").attr("data-src"))
-        return newMovieSearchResponse(title, href, TvType.Movie) {
+    private fun Element.toSearchResult(): SearchResponse? {
+        val title = this.selectFirst(".tt, h2, h3")?.text()?.trim() ?: return null
+        val href = this.selectFirst("a")?.attr("href") ?: return null
+        val posterUrl = this.selectFirst("img")?.getImageAttr()?.fixImageQuality()
+        return newMovieSearchResponse(title, href, TvType.Anime) {
             this.posterUrl = posterUrl
         }
     }
 
-
     override suspend fun search(query: String): List<SearchResponse> {
-        val searchResponse = mutableListOf<SearchResponse>()
-
-        for (i in 1..3) {
-            val document = app.get("${mainUrl}/page/$i/?s=$query").document
-
-            val results = document.select("div.listupd > article").mapNotNull { it.toSearchResult() }
-
-            if (!searchResponse.containsAll(results)) {
-                searchResponse.addAll(results)
-            } else {
-                break
-            }
-
-            if (results.isEmpty()) break
+        val document = app.get("$mainUrl/?s=$query").document
+        return document.select("div.listupd article.bs, div.listupd div.bs, .listupd .chor").mapNotNull {
+            it.toSearchResult()
         }
-
-        return searchResponse
     }
-
-    private fun Element.toRecommendResult(): SearchResponse? {
-    val title = this.selectFirst("div.tt")?.text()?.trim() ?: return null
-    val href = this.selectFirst("a")?.attr("href") ?: return null
-    val posterUrl = this.selectFirst("img")?.getImageAttr()?.let { fixUrlNull(it) }
-    return newMovieSearchResponse(title, href, TvType.Movie) {
-        this.posterUrl = posterUrl
-    }
-}
 
     override suspend fun load(url: String): LoadResponse {
         val document = app.get(url).document
-        val title       = document.selectFirst("h1.entry-title")?.text()?.trim().toString()
-        val href=document.selectFirst(".eplister li > a")?.attr("href") ?:""
-        var poster = document.select("div.ime > img").attr("data-src")
-        val recommendations = document.select("div.listupd article.bs")
-        .mapNotNull { it.toRecommendResult() }
-        val description = document.selectFirst("div.entry-content")?.text()?.trim()
-        val type=document.selectFirst(".spe")?.text().toString()
-        val tvtag=if (type.contains("Movie")) TvType.Movie else TvType.TvSeries
-        return if (tvtag == TvType.TvSeries) {
-            val Eppage= document.selectFirst(".eplister li > a")?.attr("href") ?:""
-            val doc= app.get(Eppage).document
-            val episodes=doc.select("div.episodelist > ul > li").map { info->
-                        val href1 = info.select("a").attr("href")
-                        val episode = info.select("a span").text().substringAfter("-").substringBeforeLast("-")
-                        val posterr=info.selectFirst("a img")?.attr("data-src") ?:""
-                        newEpisode(href1)
-                        {
-                            this.name=episode.replace(title,"",ignoreCase = true)
-                            this.episode=episode.toIntOrNull()
-                            this.posterUrl=posterr
-                        }
+        val title = document.selectFirst("h1.entry-title, title")?.text()?.replace("Subtitle Indonesia", "")?.trim() ?: ""
+        val poster = document.selectFirst("div.thumb img, .poster img")?.getImageAttr()?.fixImageQuality()
+        val description = document.selectFirst(".entry-content p, .contt")?.text()?.trim()
+        
+        val episodes = document.select("div.eplister ul li, ul.clor li").mapNotNull { li ->
+            val epHref = li.selectFirst("a")?.attr("href") ?: return@mapNotNull null
+            val epTitle = li.selectFirst(".epl-num, .epl-title")?.text()?.trim() ?: "Episode"
+            newEpisode(epHref) {
+                this.name = epTitle
             }
-            if (poster.isEmpty())
-            {
-                poster=document.selectFirst("meta[property=og:image]")?.attr("content")?.trim().toString()
-            }
-            newTvSeriesLoadResponse(title, url, TvType.Anime, episodes.reversed()) {
-                this.posterUrl = poster
-                this.plot = description
-                this.recommendations = recommendations
-            }
-        } else {
-            if (poster.isEmpty())
-            {
-                poster=document.selectFirst("meta[property=og:image]")?.attr("content")?.trim().toString()
-            }
-            newMovieLoadResponse(title, url, TvType.Movie, href) {
-                this.posterUrl = poster
-                this.plot = description
-                this.recommendations = recommendations
-            }
+        }.reversed()
+
+        return newTvSeriesLoadResponse(title, url, TvType.Anime, episodes) {
+            this.posterUrl = poster
+            this.plot = description
         }
     }
 
@@ -154,43 +101,55 @@ open class Donghuastream : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val html = app.get(data).document
+        val document = app.get(data).document
 
-        val options = html.select("option[data-index]")
+        // 1. Ambil Link dari Dropdown Server / Mirror Options (Mendukung Base64 & Data Embed)
+        document.select("select.mirror option, div.player-source select option, ul.mplayer li, .mirroroption .option").forEach { server ->
+            val value = server.attr("value").takeIf { it.isNotEmpty() }
+                ?: server.attr("data-embed").takeIf { it.isNotEmpty() }
+                ?: server.attr("data-video").takeIf { it.isNotEmpty() }
 
-        for (option in options) {
-            val base64 = option.attr("value")
-            if (base64.isBlank()) continue
-            val label = option.text().trim()
-            val decodedHtml = try {
-                base64Decode(base64)
-            } catch (e: Exception) {
-                Log.w("Error", "Base64 decode failed: $base64")
-                continue
-            }
+            if (value != null) {
+                // Mencoba men-decode jika value berupa Base64 cipher player
+                val decoded = try {
+                    base64Decode(value)
+                } catch (_: Exception) { "" }
 
-            val iframeUrl = Jsoup.parse(decodedHtml).selectFirst("iframe")?.attr("src")?.let(::httpsify)
-            if (iframeUrl.isNullOrEmpty()) continue
-
-            when {
-                "vidmoly" in iframeUrl -> {
-                    val cleanedUrl = "http:" + iframeUrl.substringAfter("=\"").substringBefore("\"")
-                    loadExtractor(cleanedUrl, referer = iframeUrl, subtitleCallback, callback)
+                val iframeUrl = if (decoded.isNotEmpty() && decoded.contains("iframe", true)) {
+                    org.jsoup.Jsoup.parse(decoded).selectFirst("iframe")?.attr("src")?.let(::httpsify)
+                } else {
+                    value.let(::httpsify)
                 }
-                iframeUrl.endsWith(".mp4") -> {
+
+                if (!iframeUrl.isNullOrEmpty() && iframeUrl.startsWith("http")) {
+                    val label = server.text().trim().ifEmpty { "Server" }
+                    if (iframeUrl.endsWith(".mp4")) {
+                        callback(
+                            newExtractorLink(label, label, url = iframeUrl, INFER_TYPE) {
+                                this.referer = ""
+                                this.quality = getQualityFromName(label)
+                            }
+                        )
+                    } else {
+                        loadExtractor(iframeUrl, referer = iframeUrl, subtitleCallback, callback)
+                    }
+                }
+            }
+        }
+
+        // 2. Ambil Link dari Iframe Langsung di Halaman (Metode Fallback Lama)
+        document.select("div.embed-holder iframe, div.video-content iframe, div.player iframe, iframe#player").forEach { iframe ->
+            val iframeUrl = iframe.getIframeAttr()?.let(::httpsify)
+            if (!iframeUrl.isNullOrEmpty() && iframeUrl.startsWith("http")) {
+                val label = "Iframe Player"
+                if (iframeUrl.endsWith(".mp4")) {
                     callback(
-                        newExtractorLink(
-                            label,
-                            label,
-                            url = iframeUrl,
-                            INFER_TYPE
-                        ) {
+                        newExtractorLink(label, label, url = iframeUrl, INFER_TYPE) {
                             this.referer = ""
                             this.quality = getQualityFromName(label)
                         }
                     )
-                }
-                else -> {
+                } else {
                     loadExtractor(iframeUrl, referer = iframeUrl, subtitleCallback, callback)
                 }
             }
