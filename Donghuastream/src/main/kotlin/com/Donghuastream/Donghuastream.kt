@@ -1,7 +1,24 @@
 package com.Donghuastream
 
 import com.lagradost.api.Log
-import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.HomePageList
+import com.lagradost.cloudstream3.HomePageResponse
+import com.lagradost.cloudstream3.LoadResponse
+import com.lagradost.cloudstream3.MainAPI
+import com.lagradost.cloudstream3.MainPageRequest
+import com.lagradost.cloudstream3.SearchResponse
+import com.lagradost.cloudstream3.SubtitleFile
+import com.lagradost.cloudstream3.TvType
+import com.lagradost.cloudstream3.app
+import com.lagradost.cloudstream3.base64Decode
+import com.lagradost.cloudstream3.fixUrl
+import com.lagradost.cloudstream3.fixUrlNull
+import com.lagradost.cloudstream3.mainPageOf
+import com.lagradost.cloudstream3.newEpisode
+import com.lagradost.cloudstream3.newHomePageResponse
+import com.lagradost.cloudstream3.newMovieLoadResponse
+import com.lagradost.cloudstream3.newMovieSearchResponse
+import com.lagradost.cloudstream3.newTvSeriesLoadResponse
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.INFER_TYPE
 import com.lagradost.cloudstream3.utils.getQualityFromName
@@ -23,42 +40,28 @@ open class Donghuastream : MainAPI() {
     override val hasDownloadSupport = true
     override val supportedTypes = setOf(TvType.Anime)
 
-    private val browserHeaders = mapOf(
-        "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept" to "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-        "Accept-Language" to "id,en-US;q=0.7,en;q=0.3"
-    )
-
     override val mainPage = mainPageOf(
-        "" to "Latest Update",
-        "donghua/" to "Donghua Series",
-        "donghua/?status=completed&order=update" to "Completed Donghua",
-        "donghua/?order=popular" to "Popular Donghua"
+        "donghua/?status=&type=&order=update&page=" to "Recently Updated",
+        "donghua/?status=completed&type=&order=update&page=" to "Completed",
+        "donghua/?status=&type=&order=popular&page=" to "Popular",
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val data = request.data
-        val url = when {
-            data.isEmpty() -> if (page == 1) mainUrl else "$mainUrl/page/$page/"
-            data.contains("?") -> {
-                val path = data.substringBefore("?")
-                val query = data.substringAfter("?")
-                if (page == 1) "$mainUrl/$path?$query" else "$mainUrl/$path/page/$page/?$query"
-            }
-            else -> if (page == 1) "$mainUrl/$data" else "$mainUrl/$data/page/$page/"
-        }.replace("//", "/").replace("https:/", "https://")
-
-        val document = app.get(url, headers = browserHeaders).document
-        // Membidik langsung ke elemen 'li' di dalam kontainer .utao agar tidak menggulung satu halaman penuh
-        val home = document.select("div.listupd .utao li, div.listupd article.bs, div.listupd div.bs, .listupd .chor").mapNotNull {
+        val url = if (request.data.contains("page=")) {
+            "$mainUrl/${request.data}$page"
+        } else {
+            "$mainUrl/${request.data}/page/$page/"
+        }
+        val document = app.get(url).document
+        val home = document.select("div.listupd article.bs, div.listupd div.bs, .listupd .chor").mapNotNull {
             it.toSearchResult()
         }
         return newHomePageResponse(request.name, home)
     }
 
     private fun Element.toSearchResult(): SearchResponse? {
-        val title = this.selectFirst(".tt, h2, h3, .tta, .title, .entry-title")?.text()?.trim() ?: return null
-        val href = fixUrl(this.selectFirst("a")?.attr("href") ?: return null)
+        val title = this.selectFirst(".tt, h2, h3")?.text()?.trim() ?: return null
+        val href = this.selectFirst("a")?.attr("href") ?: return null
         val posterUrl = this.selectFirst("img")?.getImageAttr()?.fixImageQuality()
         return newMovieSearchResponse(title, href, TvType.Anime) {
             this.posterUrl = posterUrl
@@ -66,20 +69,20 @@ open class Donghuastream : MainAPI() {
     }
 
     override suspend fun search(query: String): List<SearchResponse> {
-        val document = app.get("$mainUrl/?s=$query", headers = browserHeaders).document
-        return document.select("div.listupd .utao li, div.listupd article.bs, div.listupd div.bs, .listupd .chor").mapNotNull {
+        val document = app.get("$mainUrl/?s=$query").document
+        return document.select("div.listupd article.bs, div.listupd div.bs, .listupd .chor").mapNotNull {
             it.toSearchResult()
         }
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url, headers = browserHeaders).document
+        val document = app.get(url).document
         val title = document.selectFirst("h1.entry-title, title")?.text()?.replace("Subtitle Indonesia", "")?.trim() ?: ""
         val poster = document.selectFirst("div.thumb img, .poster img")?.getImageAttr()?.fixImageQuality()
         val description = document.selectFirst(".entry-content p, .contt")?.text()?.trim()
         
         val episodes = document.select("div.eplister ul li, ul.clor li").mapNotNull { li ->
-            val epHref = fixUrl(li.selectFirst("a")?.attr("href") ?: return@mapNotNull null)
+            val epHref = li.selectFirst("a")?.attr("href") ?: return@mapNotNull null
             val epTitle = li.selectFirst(".epl-num, .epl-title")?.text()?.trim() ?: "Episode"
             newEpisode(epHref) {
                 this.name = epTitle
@@ -98,15 +101,16 @@ open class Donghuastream : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val document = app.get(data, headers = browserHeaders).document
+        val document = app.get(data).document
 
         // 1. Ambil Link dari Dropdown Server / Mirror Options (Mendukung Base64 & Data Embed)
-        document.select("select.mirror option, div.player-source select option, ul.mplayer li, .mirroroption .option").forEach { server ->
+        document.select("select.mirror option, div.player-source select option, ul.mplayer li, .mirroroption .option, .plep select option").forEach { server ->
             val value = server.attr("value").takeIf { it.isNotEmpty() }
                 ?: server.attr("data-embed").takeIf { it.isNotEmpty() }
                 ?: server.attr("data-video").takeIf { it.isNotEmpty() }
 
             if (value != null) {
+                // Mencoba men-decode jika value berupa Base64 cipher player
                 val decoded = try {
                     base64Decode(value)
                 } catch (_: Exception) { "" }
@@ -119,7 +123,7 @@ open class Donghuastream : MainAPI() {
 
                 if (!iframeUrl.isNullOrEmpty() && iframeUrl.startsWith("http")) {
                     val label = server.text().trim().ifEmpty { "Server" }
-                    if (iframeUrl.endsWith(".mp4")) {
+                    if (iframeUrl.contains(".mp4") || iframeUrl.endsWith(".mp4")) {
                         callback(
                             newExtractorLink(label, label, url = iframeUrl, INFER_TYPE) {
                                 this.referer = ""
@@ -133,12 +137,12 @@ open class Donghuastream : MainAPI() {
             }
         }
 
-        // 2. Ambil Link dari Iframe Langsung di Halaman (Metode Fallback Lama)
-        document.select("div.embed-holder iframe, div.video-content iframe, div.player iframe, iframe#player").forEach { iframe ->
+        // 2. Fallback: Ambil Link dari Iframe Langsung di Halaman (Metode Bawaan Asli)
+        document.select("div.embed-holder iframe, div.video-content iframe, div.player iframe, iframe#player, .player-embed iframe").forEach { iframe ->
             val iframeUrl = iframe.getIframeAttr()?.let(::httpsify)
             if (!iframeUrl.isNullOrEmpty() && iframeUrl.startsWith("http")) {
                 val label = "Iframe Player"
-                if (iframeUrl.endsWith(".mp4")) {
+                if (iframeUrl.contains(".mp4") || iframeUrl.endsWith(".mp4")) {
                     callback(
                         newExtractorLink(label, label, url = iframeUrl, INFER_TYPE) {
                             this.referer = ""
