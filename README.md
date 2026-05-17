@@ -7,7 +7,7 @@
 <img src="https://img.shields.io/github/license/sad25kag/BetbetMiro-Extension?style=for-the-badge" />
 <img src="https://img.shields.io/github/last-commit/sad25kag/BetbetMiro-Extension?style=for-the-badge" />
 
-<br>
+<br><br>
 
 # 🎬 CloudStream Extension Repository
 
@@ -131,3 +131,5 @@ Semua konten berasal dari pihak ketiga/public source di internet.
 ### Made with ☕ + error merah Gradle 😭
 
 </div>
+
+---
