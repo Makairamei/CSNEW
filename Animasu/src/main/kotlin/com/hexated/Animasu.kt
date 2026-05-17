@@ -46,7 +46,6 @@ class Animasu : MainAPI() {
         }
     }
 
-
     override val mainPage = mainPageOf(
         "urutan=update" to "Baru diupdate",
         "status=&tipe=&urutan=publikasi" to "Baru ditambahkan",
@@ -74,11 +73,9 @@ class Animasu : MainAPI() {
                 (title.contains("-episode")) && !(title.contains("-movie")) -> title.substringBefore(
                     "-episode"
                 )
-
                 (title.contains("-movie")) -> title.substringBefore("-movie")
                 else -> title
             }
-
             "$mainUrl/anime/$title"
         }
     }
@@ -92,7 +89,6 @@ class Animasu : MainAPI() {
             this.posterUrl = posterUrl
             addSub(epNum)
         }
-
     }
 
     override suspend fun search(query: String): List<SearchResponse> {
@@ -115,11 +111,12 @@ class Animasu : MainAPI() {
                 ?.toIntOrNull()
         val status = table?.selectFirst("span:contains(Status:) font")?.text()
         val trailer = document.selectFirst("div.trailer iframe")?.attr("src")
-        val episodes = document.select("ul#daftarepisode > li").map {
-            val link = fixUrl(it.selectFirst("a")!!.attr("href"))
-            val name = it.selectFirst("a")?.text() ?: ""
-            val episode =
-                Regex("Episode\\s?(\\d+)").find(name)?.groupValues?.getOrNull(0)?.toIntOrNull()
+        
+        val episodes = document.select("ul#daftarepisode > li").mapNotNull {
+            val aTag = it.selectFirst("a") ?: return@mapNotNull null
+            val link = fixUrl(aTag.attr("href"))
+            val name = aTag.text()
+            val episode = Regex("Episode\\s?(\\d+)").find(name)?.groupValues?.getOrNull(1)?.toIntOrNull()
             newEpisode(link) { this.episode = episode }
         }.reversed()
 
@@ -147,10 +144,13 @@ class Animasu : MainAPI() {
     ): Boolean {
         val document = app.get(data).document
         document.select(".mobius > .mirror > option").mapNotNull {
-                fixUrl(
-                    Jsoup.parse(base64Decode(it.attr("value"))).select("iframe").attr("src")
-                ) to it.text()
-            }.amap { (iframe, quality) ->
+            val rawValue = it.attr("value")
+            if (rawValue.isBlank()) return@mapNotNull null
+            val decoded = base64Decode(rawValue) ?: return@mapNotNull null
+            val iframeSrc = Jsoup.parse(decoded).select("iframe").attr("src")
+            if (iframeSrc.isBlank()) return@mapNotNull null
+            fixUrl(iframeSrc) to it.text()
+        }.amap { (iframe, quality) ->
             loadFixedExtractor(iframe, quality, "$mainUrl/", subtitleCallback, callback)
         }
         return true
@@ -197,5 +197,4 @@ class Animasu : MainAPI() {
             else -> this.attr("abs:src")
         }
     }
-
 }
