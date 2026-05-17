@@ -197,7 +197,7 @@ class Animasu : MainAPI() {
 
         val tracker = try {
             APIHolder.getTracker(
-                title,
+                listOf(title),
                 TrackerType.getTypes(type),
                 year,
                 true
