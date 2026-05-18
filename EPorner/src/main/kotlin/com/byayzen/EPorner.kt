@@ -5,6 +5,9 @@ import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
 import com.lagradost.cloudstream3.network.WebViewResolver
 import com.lagradost.cloudstream3.utils.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.jsoup.nodes.Element
 
 class EPorner : MainAPI() {
@@ -15,44 +18,101 @@ class EPorner : MainAPI() {
     override val hasQuickSearch = false
     override val supportedTypes = setOf(TvType.NSFW)
 
+    companion object {
+        // SISTEM ANTREAN: Memaksa request beranda berjalan bergantian agar tidak diblokir server
+        private val mutex = Mutex()
+    }
+
+    // Mengadopsi daftar kategori terlengkap dari kode referensi pilihan bosku
     override val mainPage = mainPageOf(
-        "$mainUrl/" to "Most recent",
-        "$mainUrl/most-viewed/" to "Most viewed",
-        "$mainUrl/top-rated/" to "Top rated",
-        "$mainUrl/longest/" to "Longest",
-        "$mainUrl/tag/cowgirl/" to "Cowgirl",
-        "$mainUrl/tag/riding/" to "Riding",
-        "$mainUrl/tag/turkish/" to "Turkish",
-        "$mainUrl/cat/housewives/" to "Housewives"
+        "" to "Recent Videos",
+        "best-videos" to "Best Videos",
+        "top-rated" to "Top Rated",
+        "most-viewed" to "Most Viewed",
+        "cat/milf" to "Milf",
+        "cat/japanese" to "Japanese",
+        "cat/hd-1080p" to "1080 Porn",
+        "cat/4k-porn" to "4K Porn",
+        "country-top/id" to "Indonesia"
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val url = if (page <= 1) request.data else "${request.data.removeSuffix("/")}/$page/"
-        val home = app.get(url).document.select("div#vidresults div.mb").mapNotNull { it.toSearchResult() }
-        return newHomePageResponse(request.name, home, hasNext = true)
+        // Pembuatan URL dinamis yang rapi untuk menangani halaman pertama vs halaman berikutnya
+        val url = if (request.data.isEmpty()) {
+            if (page == 1) "$mainUrl/" else "$mainUrl/$page/"
+        } else {
+            if (page == 1) "$mainUrl/${request.data}/" else "$mainUrl/${request.data}/$page/"
+        }
+
+        var home: List<SearchResponse> = emptyList()
+
+        // Eksekusi aman via Mutex lock dengan taktik Auto-Retry bawaan
+        mutex.withLock {
+            for (i in 1..2) {
+                try {
+                    val document = app.get(url, timeout = 15L).document
+                    // Mendukung penyeleksian elemen dari kedua versi layout HTML EPorner
+                    val elements = document.select("#div-search-results div.mb, div#vidresults div.mb")
+                    home = elements.mapNotNull { it.toSearchResult() }
+                    if (home.isNotEmpty()) break
+                } catch (e: Exception) {
+                    delay(1000L)
+                }
+            }
+            delay(250L) // Jeda nafas agar server tidak mendeteksi aktivitas bot
+        }
+
+        // KUNCI UTAMA: Membungkus data ke dalam HomePageList agar menu kategori muncul di HP lu!
+        return newHomePageResponse(
+            list = listOf(
+                HomePageList(
+                    name = request.name,
+                    list = home,
+                    isHorizontalImages = true
+                )
+            ),
+            hasNext = home.isNotEmpty()
+        )
     }
 
     private fun Element.toSearchResult(): SearchResponse? {
-        val title = this.selectFirst("p.title a")?.text() ?: return null
-        val href = mainUrl + (this.selectFirst("p.title a")?.attr("href") ?: return null)
-        val poster = this.selectFirst("div.img img")?.attr("src") ?: ""
-        return newMovieSearchResponse(title, href, TvType.NSFW) {
-            this.posterUrl = poster
+        try {
+            val titleElement = this.selectFirst("div.mbunder p.mbtit a, p.title a") ?: return null
+            val title = titleElement.text().trim()
+            
+            val hrefElement = this.selectFirst("div.mbcontent a, p.title a") ?: return null
+            val href = fixUrl(hrefElement.attr("href"))
+            
+            val img = this.selectFirst("img") ?: return null
+            val posterUrl = img.attr("data-src").ifBlank { img.attr("src") }
+
+            return newMovieSearchResponse(title, href, TvType.NSFW) {
+                this.posterUrl = posterUrl
+            }
+        } catch (e: Exception) {
+            return null
         }
     }
 
     override suspend fun search(query: String): List<SearchResponse> {
         val url = "$mainUrl/search/${query.replace(" ", "-")}/"
-        return app.get(url).document.select("div#vidresults div.mb").mapNotNull { it.toSearchResult() }
+        val document = app.get(url).document
+        return document.select("#div-search-results div.mb, div#vidresults div.mb").mapNotNull { it.toSearchResult() }
     }
 
     override suspend fun load(url: String): LoadResponse? {
         val document = app.get(url).document
-        val title = document.selectFirst("h1")?.text() ?: return null
+        val title = document.selectFirst("h1, meta[property=og:title]")?.text() 
+            ?: document.selectFirst("meta[property=og:title]")?.attr("content") ?: ""
         val poster = document.selectFirst("meta[property=og:image]")?.attr("content") ?: ""
         
+        val recommendationsList = document.select("div#relateddiv div.mb, #div-search-results div.mb").mapNotNull {
+            it.toSearchResult()
+        }
+
         return newMovieLoadResponse(title, url, TvType.NSFW, url) {
             this.posterUrl = poster
+            this.recommendations = recommendationsList
         }
     }
 
@@ -78,7 +138,7 @@ class EPorner : MainAPI() {
                 """"(\d{3,4}p)[^"]*"\s*:\s*\{\s*"labelShort"\s*:\s*"[^"]*"\s*,\s*"src"\s*:\s*"([^"]+)"""".toRegex()
                     .findAll(responseText).forEach { match ->
                         val videoUrl = match.groupValues[2]
-                        val rawQuality = match.groupValues[1] // Contoh: "1080p"
+                        val rawQuality = match.groupValues[1]
                         
                         if (!videoUrl.contains("/dload/")) {
                             callback.invoke(
@@ -89,7 +149,6 @@ class EPorner : MainAPI() {
                                     type = ExtractorLinkType.VIDEO
                                 ) {
                                     this.referer = "https://www.eporner.com/"
-                                    // BYPASS TOTAL: Ambil angkanya doang (1080) pakai Kotlin murni, gak butuh API CloudStream!
                                     this.quality = rawQuality.replace(Regex("\\D"), "").toIntOrNull() ?: 0
                                 }
                             )
