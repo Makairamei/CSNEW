@@ -5,9 +5,9 @@ import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
 import com.lagradost.cloudstream3.network.WebViewResolver
 import com.lagradost.cloudstream3.utils.*
-// FIX: getQualityFromName is defined inside the AppUtils object, so the wildcard
-// import com.lagradost.cloudstream3.utils.* does NOT resolve it automatically.
-// It must be imported explicitly as an extension/member of that object.
+// FIX: getQualityFromName and getQualityFromName are inside the AppUtils object.
+// Wildcard import com.lagradost.cloudstream3.utils.* does NOT resolve object members.
+// Must be imported explicitly.
 import com.lagradost.cloudstream3.utils.AppUtils.getQualityFromName
 import org.jsoup.nodes.Element
 
@@ -16,6 +16,9 @@ class EPorner : MainAPI() {
     override var name = "EPorner"
     override val hasMainPage = true
     override var lang = "id"
+    // FIX: hasQuickSearch = false but quickSearch was still implemented incorrectly.
+    // Set to false and remove the broken quickSearch override entirely — the framework
+    // will not call quickSearch when this is false, and a broken override causes compile errors.
     override val hasQuickSearch = false
     override val supportedTypes = setOf(TvType.NSFW)
 
@@ -32,21 +35,24 @@ class EPorner : MainAPI() {
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val url = if (page <= 1) request.data else "${request.data.removeSuffix("/")}/$page/"
-        val home = app.get(url).document.select("div#vidresults div.mb").mapNotNull { it.toSearchResult() }
+        val home = app.get(url).document
+            .select("div#vidresults div.mb")
+            .mapNotNull { it.toSearchResult() }
         return newHomePageResponse(HomePageList(request.name, home, true), true)
     }
 
-    override suspend fun search(query: String, page: Int): SearchResponseList {
+    // FIX: Replaced search(query: String, page: Int): SearchResponseList with the standard
+    // CloudStream3 signature search(query: String): List<SearchResponse>?
+    // The paginated signature + SearchResponseList type + newSearchResponseList function
+    // do NOT exist in most CloudStream3 versions, causing "overrides nothing" and
+    // "Unresolved reference" compile errors.
+    override suspend fun search(query: String): List<SearchResponse>? {
         val formattedQuery = query.replace(" ", "-")
-        val url = if (page <= 1) "$mainUrl/search/$formattedQuery/" else "$mainUrl/search/$formattedQuery/$page/"
-        val results = app.get(url).document.select("div#vidresults div.mb").mapNotNull { it.toSearchResult() }
-        return newSearchResponseList(results, true)
+        val url = "$mainUrl/search/$formattedQuery/"
+        return app.get(url).document
+            .select("div#vidresults div.mb")
+            .mapNotNull { it.toSearchResult() }
     }
-
-    // FIX #1: quickSearch was calling search(query) with only 1 argument, but search()
-    // requires 2 parameters (query: String, page: Int). This caused a compile error.
-    // Fixed by passing page=1 explicitly.
-    override suspend fun quickSearch(query: String): List<SearchResponse>? = search(query, 1).searchResponses
 
     private fun Element.toSearchResult(): SearchResponse? {
         val titleElement = this.selectFirst("p.mbtit a") ?: return null
@@ -75,8 +81,10 @@ class EPorner : MainAPI() {
         val year = document.selectFirst("span.C a")?.text()?.trim()?.toIntOrNull()
         val duration = document.selectFirst("span.vid-length")?.text()
             ?.replace("min", "")?.trim()?.toIntOrNull()
-        val description = document.selectFirst("meta[property=og:description]")?.attr("content")?.trim()
-        val recommendations = document.select("div#relateddiv div.mb").mapNotNull { it.toRecommendationResult() }
+        val description = document.selectFirst("meta[property=og:description]")
+            ?.attr("content")?.trim()
+        val recommendations = document.select("div#relateddiv div.mb")
+            .mapNotNull { it.toRecommendationResult() }
         val actors = document.select("span.valor a").map { Actor(it.text()) }
 
         return newMovieLoadResponse(title, url, TvType.NSFW, url) {
@@ -120,8 +128,6 @@ class EPorner : MainAPI() {
             useOkhttp = true
         )
 
-        // FIX #3: Replaced empty catch block with proper logging.
-        // Silent catch means the user sees a blank player with no indication of what went wrong.
         try {
             val capturedUrl = app.get(url, interceptor = resolver).url
             if (capturedUrl.contains("/xhr/video/")) {
