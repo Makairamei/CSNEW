@@ -7,6 +7,7 @@ import com.lagradost.cloudstream3.HomePageResponse
 import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.MainPageRequest
+import com.lagradost.cloudstream3.MainPageData
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.SearchResponseList
 import com.lagradost.cloudstream3.SubtitleFile
@@ -18,47 +19,41 @@ import com.lagradost.cloudstream3.newMovieSearchResponse
 import com.lagradost.cloudstream3.toNewSearchResponseList
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
-import com.lagradost.cloudstream3.utils.ExtractorLinkType
 import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.StringUtils.encodeUri
 import com.lagradost.cloudstream3.utils.loadExtractor
-import com.lagradost.cloudstream3.utils.newExtractorLink
 
-class InvidiousProvider : MainAPI() { // all providers must be an instance of MainAPI
+class InvidiousProvider : MainAPI() { 
     override var mainUrl = "https://inv.nadeko.net"
-    override var name = "Invidious" // name of provider
-    override val supportedTypes = setOf(TvType.Others)
-
+    override var name = "Invidious" 
+    override val supportedTypes = setOf(TvType.Movie, TvType.Others)
     override var lang = "en"
-
-    // enable this when your provider has a main page
     override val hasMainPage = true
 
+    // Mendefinisikan menu beranda agar tab Popular & Trending muncul di aplikasi
+    override val mainPage = listOf(
+        MainPageData("Popular", "popular"),
+        MainPageData("Trending", "trending")
+    )
+
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val popular = tryParseJson<List<SearchEntry>>(
-            app.get("$mainUrl/api/v1/popular?fields=videoId,title").text
-        )
-        val trending = tryParseJson<List<SearchEntry>>(
-            app.get("$mainUrl/api/v1/trending?fields=videoId,title").text
-        )
+        val type = request.data
+        val url = "$mainUrl/api/v1/$type?fields=videoId,title"
+        val res = tryParseJson<List<SearchEntry>>(app.get(url).text)
+        val list = res?.map { it.toSearchResponse(this) } ?: emptyList()
+        
         return newHomePageResponse(
             listOf(
                 HomePageList(
-                    "Popular",
-                    popular?.map { it.toSearchResponse(this) } ?: emptyList(),
-                    true
-                ),
-                HomePageList(
-                    "Trending",
-                    trending?.map { it.toSearchResponse(this) } ?: emptyList(),
-                    true
+                    request.name,
+                    list,
+                    false
                 )
             ),
             false
         )
     }
 
-    // this function gets called when you search for something
     override suspend fun search(query: String, page: Int): SearchResponseList? {
         val res = tryParseJson<List<SearchEntry>>(
             app.get("$mainUrl/api/v1/search?q=${query.encodeUri()}&page=$page&type=video&fields=videoId,title").text
@@ -69,9 +64,9 @@ class InvidiousProvider : MainAPI() { // all providers must be an instance of Ma
     }
 
     override suspend fun load(url: String): LoadResponse? {
-        val videoId = Regex("watch\\?v=([a-zA-Z0-9_-]+)").find(url)?.groups?.get(1)?.value
+        val videoId = Regex("watch\\?v=([a-zA-Z0-9_-]+)").find(url)?.groupValues?.get(1)
         val res = tryParseJson<VideoEntry>(
-            app.get("$mainUrl/api/v1/videos/$videoId?fields=videoId,title,description,recommendedVideos,author,authorThumbnails,formatStreams").text
+            app.get("$mainUrl/api/v1/videos/$videoId?fields=videoId,title,description,recommendedVideos,author,authorThumbnails").text
         )
         return res?.toLoadResponse(this)
     }
@@ -134,12 +129,16 @@ class InvidiousProvider : MainAPI() { // all providers must be an instance of Ma
             subtitleCallback,
             callback
         )
+        
         callback(
-            newExtractorLink(this.name, this.name, "$mainUrl/api/manifest/dash/id/$data") {
-                quality = Qualities.Unknown.value
-                type = ExtractorLinkType.DASH
-                referer = ""
-            }
+            ExtractorLink(
+                source = this.name,
+                name = this.name,
+                url = "$mainUrl/api/manifest/dash/id/$data",
+                referer = "",
+                quality = Qualities.Unknown.value,
+                isM3u8 = false
+            )
         )
         return true
     }
