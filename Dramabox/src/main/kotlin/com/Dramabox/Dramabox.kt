@@ -133,6 +133,7 @@ class Dramabox : MainAPI() {
     // Previously the code only tried the wrapped format — if the API returned the object
     // directly, data would be null and "Drama tidak ditemukan" was always thrown.
     // Now we try both formats: wrapped first, then unwrapped as fallback.
+    // Also logs the raw body so you can see exactly what the API returned when debugging.
     private suspend fun fetchDramaDetail(dramaId: String): DramaItem? {
         return try {
             val url = "$apiUrl/api/dramas/$dramaId"
@@ -140,10 +141,18 @@ class Dramabox : MainAPI() {
                 rateLimitDelay(moduleName = "Dramabox")
                 app.get(url, timeout = AutoUsedConstants.DEFAULT_TIMEOUT).text
             }
+            logDebug("Dramabox", "fetchDramaDetail[$dramaId] raw body: ${body.take(300)}")
+
             // Try wrapped format {"data": {...}} first
-            tryParseJson<DramaDetailResponse>(body)?.data
-                // Fall back to direct object format {...}
-                ?: tryParseJson<DramaItem>(body)?.takeIf { it.id != null }
+            val wrapped = tryParseJson<DramaDetailResponse>(body)?.data
+            if (wrapped?.id != null) return wrapped
+
+            // Fall back to direct object format {...}
+            val direct = tryParseJson<DramaItem>(body)
+            if (direct?.id != null) return direct
+
+            logError("Dramabox", "fetchDramaDetail[$dramaId]: both parse formats returned null. Body: ${body.take(500)}")
+            null
         } catch (e: Exception) {
             logError("Dramabox", "fetchDramaDetail failed for id=$dramaId", e)
             null
