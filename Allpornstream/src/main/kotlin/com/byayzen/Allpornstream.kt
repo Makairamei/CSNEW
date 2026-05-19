@@ -1,9 +1,9 @@
-// ! Bu araç @ByAyzen tarafından | @Cs-GizliKeyif untuk Allpornstream telah diperbarui
 package com.byayzen
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
+import com.lagradost.cloudstream3.LoadResponse.Companion.addTrailer
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -93,7 +93,7 @@ class Allpornstream : MainAPI() {
         "${mainUrl}/categories/vibrator" to "Vibrator"
     )
 
-    override suspend fun getMainPage(page: Int, request: MainAPIRequest): HomePageResponse? {
+    override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse? {
         val res = app.get(request.data, headers = appHeaders).text
         val elements = Regex("""<div class="thumb-container">(.*?)</div>""").findAll(res)
         
@@ -132,7 +132,8 @@ class Allpornstream : MainAPI() {
         val poster = Regex("""poster="(.*?)"""").find(res)?.groupValues?.get(1) ?: ""
         val plot = Regex("""<p>(.*?)</p>""").find(res)?.groupValues?.get(1) ?: ""
         val duration = Regex("""duration="(.*?)"""").find(res)?.groupValues?.get(1) ?: ""
-        val year = Regex("""year="(.*?)"""").find(res)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+        val yearString = Regex("""year="(.*?)"""").find(res)?.groupValues?.get(1)
+        val year = yearString?.toIntOrNull() ?: 0
 
         val tags = Regex("""categories":\[(.*?)]""").find(res)?.groupValues?.get(1)
             ?.split(",")?.map { it.trim().removeSurrounding("\"") }
@@ -169,8 +170,7 @@ class Allpornstream : MainAPI() {
 
         links.forEach { link ->
             callback.invoke(
-                ExtractorLink(
-                    this.name,
+                newExtractorLink(
                     this.name,
                     link,
                     this.mainUrl,
