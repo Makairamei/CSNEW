@@ -1479,10 +1479,10 @@
     },
     {
         "iconUrl": "https://raw.githubusercontent.com/Sushan64/NetMirror-Extension/refs/heads/master/Netmirror/logo.jpeg",
-        "fileHash": "sha256-cf7484c3be4c432d17b03fd58560d51ce30c52056980c9fb09c4de5dcb0031ad",
+        "fileHash": "sha256-5f06a917df469d397ffa4f5c5b8b97275a7ca7ec01b1fcaec67750942151ff1b",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/sad25kag/BetbetMiro-Extension",
-        "fileSize": 52874,
+        "fileSize": 50000,
         "status": 1,
         "language": "id",
         "authors": [
