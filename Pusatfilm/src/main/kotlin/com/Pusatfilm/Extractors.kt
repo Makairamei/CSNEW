@@ -1,7 +1,6 @@
 package com.pusatfilm
 
 import com.lagradost.cloudstream3.SubtitleFile
-import com.lagradost.cloudstream3.apmap
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.base64Decode
 import com.lagradost.cloudstream3.utils.ExtractorApi
@@ -22,10 +21,13 @@ open class Kotakajaib : ExtractorApi() {
         val document = app.get(url, referer = referer).document
         val links = document.select("ul#dropdown-server li a")
 
-        links.apmap { element ->
+        // Perbaikan: Mengganti apmap (deprecated) menjadi forEach
+        links.forEach { element ->
             val encodedFrame = element.attr("data-frame")
-            val decodedUrl = base64Decode(encodedFrame)
-            loadExtractor(decodedUrl, "$mainUrl/", subtitleCallback, callback)
+            if (encodedFrame.isNotBlank()) {
+                val decodedUrl = base64Decode(encodedFrame)
+                loadExtractor(decodedUrl, "$mainUrl/", subtitleCallback, callback)
+            }
         }
     }
 }
