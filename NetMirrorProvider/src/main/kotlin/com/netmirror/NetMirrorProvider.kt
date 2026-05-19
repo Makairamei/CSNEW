@@ -26,6 +26,7 @@ import com.lagradost.cloudstream3.newTvSeriesLoadResponse
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import com.lagradost.cloudstream3.utils.newExtractorLink
 import com.lagradost.cloudstream3.utils.Qualities
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.net.URLEncoder
@@ -53,7 +54,6 @@ class NetMirrorProvider : MainAPI() {
         "User-Agent" to browserUserAgent
     )
 
-    // Memperbaiki inisialisasi beranda menggunakan listOf
     override val mainPage = listOf(
         MainPageData("Top Searches", "top"),
         MainPageData("Trending Movies", "tmdb_trending_movie"),
@@ -116,7 +116,7 @@ class NetMirrorProvider : MainAPI() {
                 ?: tmdb?.genres?.mapNotNull { it.name?.trim() }?.filter { it.isNotBlank() }
             this.contentRating = modalData?.ua
             this.year = tmdb?.yearOrNull() ?: payload.year
-            this.rating = modalData?.match.toRatingOrNull() ?: tmdb?.voteAverage?.let { (it * 100).toInt() }
+            this.score = modalData?.match.toRatingOrNull() ?: tmdb?.voteAverage?.let { (it * 100).toInt() }
         }
     }
 
@@ -146,9 +146,9 @@ class NetMirrorProvider : MainAPI() {
 
             item.sources.forEach { source ->
                 val path = source.file ?: return@forEach
-                // Memperbaiki pembuatan link video tanpa menggunakan kelas ExtractorLinkType hancur
+                // Menggunakan fungsi bantuan modern newExtractorLink
                 callback(
-                    ExtractorLink(
+                    newExtractorLink(
                         source = name,
                         name = source.label ?: "Stream",
                         url = path.toAbsoluteStreamUrl(),
@@ -200,7 +200,7 @@ class NetMirrorProvider : MainAPI() {
                 this.actors = cast
                 this.contentRating = contentRating
                 this.duration = duration
-                this.rating = rating
+                this.score = rating
             }
         }
 
@@ -237,7 +237,7 @@ class NetMirrorProvider : MainAPI() {
             this.actors = cast
             this.contentRating = contentRating
             this.duration = duration
-            this.rating = rating
+            this.score = rating
         }
     }
 
@@ -472,13 +472,13 @@ class NetMirrorProvider : MainAPI() {
             newTvSeriesSearchResponse(title, payload.toJson(), type) {
                 this.posterUrl = poster
                 this.year = year
-                this.rating = rating
+                this.score = rating
             }
         } else {
             newMovieSearchResponse(title, payload.toJson(), type) {
                 this.posterUrl = poster
                 this.year = year
-                this.rating = rating
+                this.score = rating
             }
         }
     }
