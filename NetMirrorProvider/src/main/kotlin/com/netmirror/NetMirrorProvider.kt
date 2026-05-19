@@ -119,7 +119,7 @@ class NetMirrorProvider : MainAPI() {
                 ?: tmdb?.genres?.mapNotNull { it.name?.trim() }?.filter { it.isNotBlank() }
             this.contentRating = modalData?.ua
             this.year = tmdb?.yearOrNull() ?: payload.year
-            this.score = rawScore?.let { Score(it) } // Memperbaiki inisialisasi Score parameter tunggal
+            this.score = rawScore?.let { Score(it) }
         }
     }
 
@@ -149,7 +149,6 @@ class NetMirrorProvider : MainAPI() {
 
             item.sources.forEach { source ->
                 val path = source.file ?: return@forEach
-                // Memperbaiki pemanggilan parameter konfigurasi di dalam kurung kurawal {}
                 callback(
                     newExtractorLink(
                         name = source.label ?: "Stream",
