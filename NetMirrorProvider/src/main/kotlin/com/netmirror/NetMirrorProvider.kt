@@ -12,7 +12,7 @@ import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.MainPageData
-import com.lagradost.cloudstream3.Score // MEMASTIKAN IMPORT SCORE ELEGAN
+import com.lagradost.cloudstream3.Score
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.TvType
@@ -119,7 +119,7 @@ class NetMirrorProvider : MainAPI() {
                 ?: tmdb?.genres?.mapNotNull { it.name?.trim() }?.filter { it.isNotBlank() }
             this.contentRating = modalData?.ua
             this.year = tmdb?.yearOrNull() ?: payload.year
-            this.score = rawScore?.let { Score(it, 1000) } // Membungkus nilai ke objek Score resmi
+            this.score = rawScore?.let { Score(it) } // Memperbaiki inisialisasi Score parameter tunggal
         }
     }
 
@@ -149,24 +149,24 @@ class NetMirrorProvider : MainAPI() {
 
             item.sources.forEach { source ->
                 val path = source.file ?: return@forEach
-                // Menggunakan fungsi gabungan .copy() untuk menyiasati batasan named arguments SDK
+                // Memperbaiki pemanggilan parameter konfigurasi di dalam kurung kurawal {}
                 callback(
                     newExtractorLink(
-                        source = name,
                         name = source.label ?: "Stream",
-                        url = path.toAbsoluteStreamUrl()
-                    ).copy(
-                        referer = "$streamUrl/",
-                        quality = source.label.toNetMirrorQuality(),
-                        isM3u8 = true,
-                        headers = mapOf(
+                        source = name,
+                        url = path.toAbsoluteStreamUrl(),
+                        isM3u8 = true
+                    ) {
+                        this.referer = "$streamUrl/"
+                        this.quality = source.label.toNetMirrorQuality()
+                        this.headers = mapOf(
                             "Referer" to "$streamUrl/",
                             "User-Agent" to exoPlayerUserAgent,
                             "Accept" to "*/*",
                             "Accept-Encoding" to "identity",
                             "Connection" to "keep-alive"
                         )
-                    )
+                    }
                 )
             }
         }
@@ -204,7 +204,7 @@ class NetMirrorProvider : MainAPI() {
                 this.actors = cast
                 this.contentRating = contentRating
                 this.duration = duration
-                this.score = rating?.let { Score(it, 1000) }
+                this.score = rating?.let { Score(it) }
             }
         }
 
@@ -241,7 +241,7 @@ class NetMirrorProvider : MainAPI() {
             this.actors = cast
             this.contentRating = contentRating
             this.duration = duration
-            this.score = rating?.let { Score(it, 1000) }
+            this.score = rating?.let { Score(it) }
         }
     }
 
@@ -476,7 +476,147 @@ class NetMirrorProvider : MainAPI() {
             newTvSeriesSearchResponse(title, payload.toJson(), type) {
                 this.posterUrl = poster
                 this.year = year
-                this.score = rating?.let { Score(it, 1000) }
+                this.score = rating?.let { Score(it) }
             }
         } else {
-            newMovieSear
+            newMovieSearchResponse(title, payload.toJson(), type) {
+                this.posterUrl = poster
+                this.year = year
+                this.score = rating?.let { Score(it) }
+            }
+        }
+    }
+
+    companion object {
+        private const val browserUserAgent =
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+        private const val exoPlayerUserAgent = "Mozilla/5.0 (Android) ExoPlayer"
+        private val iframeHeaders = mapOf(
+            "Accept" to "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+            "Accept-Language" to "en-GB,en;q=0.9",
+            "Referer" to "https://net22.cc/",
+            "sec-ch-ua" to "\"Chromium\";v=\"147\", \"Google Chrome\";v=\"147\", \"Not.A/Brand\";v=\"8\"",
+            "sec-ch-ua-mobile" to "?0",
+            "sec-ch-ua-platform" to "\"Windows\"",
+            "Sec-Fetch-Dest" to "iframe",
+            "Sec-Fetch-Mode" to "navigate",
+            "Sec-Fetch-Site" to "cross-site",
+            "Upgrade-Insecure-Requests" to "1",
+            "User-Agent" to browserUserAgent
+        )
+    }
+}
+
+data class LoadPayload(
+    val id: String?,
+    val title: String,
+    val tmdbId: Int? = null,
+    val tmdbType: String? = null,
+    val year: Int? = null,
+    val poster: String? = null
+)
+
+data class SearchData(
+    @JsonProperty("searchResult")
+    val searchResult: List<SearchItem> = emptyList()
+)
+
+data class SearchItem(
+    val id: String,
+    val t: String
+)
+
+data class MiniModalInfo(
+    val runtime: String? = null,
+    val hdsd: String? = null,
+    val ua: String? = null,
+    val match: String? = null,
+    val genre: String? = null
+)
+
+data class PostData(
+    val title: String? = null,
+    val year: String? = null,
+    val ua: String? = null,
+    val match: String? = null,
+    val runtime: String? = null,
+    val hdsd: String? = null,
+    val type: String? = null,
+    val director: String? = null,
+    val writer: String? = null,
+    val cast: String? = null,
+    val genre: String? = null,
+    val desc: String? = null,
+    val episodes: List<PostEpisode?>? = null,
+    val season: List<PostSeason>? = null,
+    val nextPageShow: Int? = null,
+    val nextPageSeason: String? = null
+)
+
+data class PostEpisode(
+    val id: String,
+    val t: String? = null,
+    val ep: String? = null,
+    val s: String? = null,
+    val time: String? = null
+)
+
+data class PostSeason(
+    val id: String? = null
+)
+
+data class EpisodesPage(
+    val episodes: List<PostEpisode>? = null,
+    val nextPageShow: Int? = null
+)
+
+data class PlayToken(
+    val h: String? = null
+)
+
+data class PlaylistItem(
+    val title: String? = null,
+    val image2: String? = null,
+    val sources: List<PlaylistSource> = emptyList(),
+    val tracks: List<PlaylistTrack>? = null
+)
+
+data class PlaylistSource(
+    val file: String? = null,
+    val label: String? = null,
+    val type: String? = null
+)
+
+data class PlaylistTrack(
+    val kind: String? = null,
+    val file: String? = null,
+    val label: String? = null
+)
+
+data class TmdbListResponse(
+    val results: List<TmdbItem>? = null
+)
+
+data class TmdbItem(
+    val id: Int? = null,
+    val title: String? = null,
+    val name: String? = null,
+    val overview: String? = null,
+    @JsonProperty("poster_path")
+    val posterPath: String? = null,
+    @JsonProperty("backdrop_path")
+    val backdropPath: String? = null,
+    @JsonProperty("vote_average")
+    val voteAverage: Double? = null,
+    @JsonProperty("release_date")
+    val releaseDate: String? = null,
+    @JsonProperty("first_air_date")
+    val firstAirDate: String? = null,
+    val genres: List<TmdbGenre>? = null
+) {
+    fun yearOrNull(): Int? = (releaseDate ?: firstAirDate)?.take(4)?.toIntOrNull()
+}
+
+data class TmdbGenre(
+    val name: String? = null
+)
