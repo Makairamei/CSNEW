@@ -99,20 +99,15 @@ class Alqanime : MainAPI() {
         val poster = document.selectFirst("div.thumb img")?.attr("src")
         val coverBg = document.selectFirst("div.ime img")?.attr("src")
         val trailerRaw = document.selectFirst("a.trailerbutton")?.attr("href")
-        val trailer = trailerRaw?.let { urlTrailer ->
-            val videoId = Regex("[?&]v=([^&]+)").find(urlTrailer)?.groupValues?.getOrNull(1)
-            if (videoId != null) "https://www.youtube.com/embed/$videoId" else urlTrailer
+        val trailer = trailerRaw?.let { url ->
+            val videoId = Regex("[?&]v=([^&]+)").find(url)?.groupValues?.getOrNull(1)
+            if (videoId != null) "https://www.youtube.com/embed/$videoId" else url
         }
         val description = document.select("div.entry-content > p")
             .filter { it.text().length > 10 }
             .joinToString("\n\n") { it.text().trim() }
             .ifBlank { null }
-        
-        // MENGAMBIL GENRE DAN MENGELOMPOKKANNYA SECARA GARIS BESAR
-        val rawGenres = document.select("div.genxed a").map { it.text().trim() }
-        val mappedGenres = rawGenres.map { genre -> 
-            AnimeCategory.getCategoryByGenre(genre)?.title ?: genre
-        }.distinct() // distinct() agar tidak ada kategori ganda (misal Isekai & Magic = 2x Fantasy)
+        val genres = document.select("div.genxed a").map { it.text() }
 
         val speMap = document.select("div.spe > span").associate { span ->
             val label = span.selectFirst("b")?.text()?.trim() ?: ""
@@ -217,8 +212,7 @@ class Alqanime : MainAPI() {
             showStatus = status
             plot = description
             addTrailer(trailer, addRaw = true)
-            // MEMASUKKAN GENRE YANG SUDAH DIRINGKAS KE DALAM TAGS CLOUDSTREAM
-            this.tags = listOfNotNull(*mappedGenres.toTypedArray(), studio, season)
+            this.tags = listOfNotNull(*genres.toTypedArray(), studio, season)
             addActors(actors)
             this.score = Score.from10(scoreText?.toFloatOrNull())
         }
@@ -291,60 +285,4 @@ class Alqanime : MainAPI() {
         @param:JsonProperty("name") val name: String,
         @param:JsonProperty("mime_type") val mimeType: String = ""
     )
-}
-
-// === ENUM KATEGORI GENRE (DITEMPATKAN DI LUAR CLASS UTAMA) ===
-enum class AnimeCategory(val title: String, val subGenres: List<String>) {
-    ACTION_ADVENTURE(
-        title = "Action & Adventure",
-        subGenres = listOf("Action", "Adventure", "Martial Arts", "Samurai", "Super Power", "Survival", "Combat Sports", "Military")
-    ),
-    COMEDY(
-        title = "Comedy",
-        subGenres = listOf("Comedy", "Gag Humor", "Parody")
-    ),
-    DRAMA_ROMANCE(
-        title = "Drama & Romance",
-        subGenres = listOf("Drama", "Romance", "Boys Love", "Girls Love", "Love Polygon", "Love Status Quo")
-    ),
-    FANTASY_SCIFI(
-        title = "Fantasy & Sci-Fi",
-        subGenres = listOf("Fantasy", "Sci-Fi", "Supernatural", "Isekai", "Magic", "Mahou Shoujo", "Mythology", "Demons", "Urban Fantasy", "Reincarnation", "Vampire", "Mecha", "Space", "Time Travel")
-    ),
-    MYSTERY_HORROR(
-        title = "Mystery, Thriller & Horror",
-        subGenres = listOf("Mystery", "Thriller", "Suspense", "Detective", "Police", "Psychological", "Horror", "Gore", "Dementia", "Organized Crime")
-    ),
-    SLICE_OF_LIFE(
-        title = "Slice of Life & Everyday",
-        subGenres = listOf("Slice of Life", "Iyashikei", "Kids", "Childcare", "CGDCT", "Educational", "Pets", "School", "Workplace", "Medical")
-    ),
-    SPORTS_GAMES(
-        title = "Sports & Games",
-        subGenres = listOf("Sports", "Team Sports", "Racing", "Cars", "Strategy Game", "High Stakes Game", "Video Game")
-    ),
-    ARTS_CULTURE(
-        title = "Arts, Music & Culture",
-        subGenres = listOf("Music", "Idols (Female)", "Idols (Male)", "Performing Arts", "Showbiz", "Visual Arts", "Otaku Culture", "Gourmet", "Historical")
-    ),
-    DEMOGRAPHICS(
-        title = "Demographics",
-        subGenres = listOf("Shounen", "Shoujo", "Seinen", "Josei")
-    ),
-    MATURE(
-        title = "Mature & Ecchi",
-        subGenres = listOf("Ecchi", "Erotica", "Harem", "Reverse Harem", "Adult Cast", "Hentong")
-    ),
-    OTHERS(
-        title = "Miscellaneous / Specific Themes",
-        subGenres = listOf("Anthropomorphic", "Avant Garde", "Award Winning", "Crossdressing", "Delinquents", "Donghua", "Korea", "Magical Sex Shift", "Malaysia", "US", "Villainess")
-    );
-
-    companion object {
-        fun getCategoryByGenre(genre: String): AnimeCategory? {
-            return entries.find { category ->
-                category.subGenres.any { it.equals(genre, ignoreCase = true) }
-            }
-        }
-    }
 }
