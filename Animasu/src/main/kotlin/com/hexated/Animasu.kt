@@ -13,7 +13,7 @@ import org.jsoup.nodes.Element
 class Animasu : MainAPI() {
 
     override var mainUrl = "https://v0.animasu.app"
-    override var name = "Animasu"
+    override var name = "Animasu😸"
     override val hasMainPage = true
     override var lang = "id"
     override val hasDownloadSupport = true
@@ -47,6 +47,7 @@ class Animasu : MainAPI() {
         }
     }
 
+    // === PERUBAHAN: MENAMBAHKAN DERETAN GENRE DI HALAMAN UTAMA ===
     override val mainPage = mainPageOf(
         "urutan=update" to "Baru diupdate",
         "status=&tipe=&urutan=publikasi" to "Baru ditambahkan",
@@ -54,6 +55,18 @@ class Animasu : MainAPI() {
         "status=&tipe=&urutan=rating" to "Rating Tertinggi",
         "status=&tipe=Movie&urutan=update" to "Movie Terbaru",
         "status=&tipe=Movie&urutan=populer" to "Movie Terpopuler",
+        "genre[]=Action" to "Action",
+        "genre[]=Comedy" to "Comedy",
+        "genre[]=Romance" to "Romance",
+        "genre[]=Fantasy" to "Fantasy",
+        "genre[]=Drama" to "Drama",
+        "genre[]=Isekai" to "Isekai",
+        "genre[]=School" to "School",
+        "genre[]=Slice+of+Life" to "Slice of Life",
+        "genre[]=Mystery" to "Mystery",
+        "genre[]=Sci-Fi" to "Sci-Fi",
+        "genre[]=Supernatural" to "Supernatural",
+        "genre[]=Harem" to "Harem"
     )
 
     override suspend fun getMainPage(
@@ -207,7 +220,7 @@ class Animasu : MainAPI() {
         }
 
         val rawTags = table?.select("span:contains(Genre:) a, span:contains(Tipe Karakter:) a")
-            ?.map { it.text().trim() }
+            ?.map { it.text().trim() } ?: emptyList()
 
         return newAnimeLoadResponse(
             title,
@@ -231,9 +244,9 @@ class Animasu : MainAPI() {
                 document.select("div.sinopsis p")
                     .text()
 
-            this.tags = rawTags?.map { tag ->
+            this.tags = rawTags.map { tag ->
                 AnimasuTagCategory.getCategoryByTag(tag)
-            }?.distinct()
+            }.distinct()
 
             addTrailer(trailer)
 
@@ -371,7 +384,6 @@ class Animasu : MainAPI() {
 }
 
 enum class AnimasuTagCategory(val title: String, val tagsList: List<String>) {
-    // Genre Standar
     ACTION_ADVENTURE("Action & Adventure", listOf("Action", "Adventure", "Martial Arts", "Samurai", "Super Power", "Survival", "Military")),
     COMEDY("Comedy", listOf("Comedy", "Gag Humor", "Parody")),
     DRAMA_ROMANCE("Drama & Romance", listOf("Drama", "Romance", "Boys Love", "Girls Love", "School")),
@@ -382,8 +394,7 @@ enum class AnimasuTagCategory(val title: String, val tagsList: List<String>) {
     ARTS_CULTURE("Arts & Music", listOf("Music", "Idol", "Historical", "Performing Arts")),
     MATURE("Mature & Ecchi", listOf("Ecchi", "Harem", "Reverse Harem")),
     DEMOGRAPHICS("Demographics", listOf("Shounen", "Shoujo", "Seinen", "Josei")),
-
-    // Tipe Karakter (MC) yang Anda berikan
+    
     MC_PERSONALITY_GOOD("MC: Kepribadian Baik", listOf("Ambisi", "Berjuang", "Beruntung", "Blakblakan", "Ceria", "Jenius", "Optimis", "Pemimpin", "Polos", "Semangat", "Setia", "Sopan", "Totalitas")),
     MC_PERSONALITY_QUIRKY("MC: Sifat Negatif/Eksentrik", listOf("Anti-Sosial", "Berisik", "Cerewet", "Ceroboh", "Kejam", "Licik", "Mencolok", "Menyebalkan", "Mesum", "Narsis", "Pemalas", "Pemalu", "Penakut", "Pendiam", "Pesimis", "Slengekan", "Suram")),
     MC_IDENTITY("MC: Identitas & Profesi", listOf("Anak-Anak", "Berbisnis", "Bounty Hunter", "Cewek", "Cowok", "Dewa", "Iblis", "Loli", "Monster", "Vampir")),
