@@ -47,7 +47,6 @@ class Animasu : MainAPI() {
         }
     }
 
-    // === FIX: PARAMETER GENRE MENGGUNAKAN HURUF KECIL (SLUG) ===
     override val mainPage = mainPageOf(
         "urutan=update" to "Baru diupdate",
         "status=&tipe=&urutan=publikasi" to "Baru ditambahkan",
@@ -55,18 +54,6 @@ class Animasu : MainAPI() {
         "status=&tipe=&urutan=rating" to "Rating Tertinggi",
         "status=&tipe=Movie&urutan=update" to "Movie Terbaru",
         "status=&tipe=Movie&urutan=populer" to "Movie Terpopuler",
-        "genre[]=action" to "Action",
-        "genre[]=comedy" to "Comedy",
-        "genre[]=romance" to "Romance",
-        "genre[]=fantasy" to "Fantasy",
-        "genre[]=drama" to "Drama",
-        "genre[]=isekai" to "Isekai",
-        "genre[]=school" to "School",
-        "genre[]=slice-of-life" to "Slice of Life",
-        "genre[]=mystery" to "Mystery",
-        "genre[]=sci-fi" to "Sci-Fi",
-        "genre[]=supernatural" to "Supernatural",
-        "genre[]=harem" to "Harem"
     )
 
     override suspend fun getMainPage(
@@ -219,9 +206,6 @@ class Animasu : MainAPI() {
             null
         }
 
-        val rawTags = table?.select("span:contains(Genre:) a, span:contains(Tipe Karakter:) a")
-            ?.map { it.text().trim() } ?: emptyList()
-
         return newAnimeLoadResponse(
             title,
             url,
@@ -244,9 +228,9 @@ class Animasu : MainAPI() {
                 document.select("div.sinopsis p")
                     .text()
 
-            this.tags = rawTags.map { tag ->
-                AnimasuTagCategory.getCategoryByTag(tag)
-            }.distinct()
+            this.tags =
+                table?.select("span:contains(Genre:) a")
+                    ?.map { it.text() }
 
             addTrailer(trailer)
 
@@ -264,21 +248,21 @@ class Animasu : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-
+        LicenseClient.requireLicense(name, "LOAD", data)
+        val cfg = LicenseClient.getSelectors(name)
+            ?: throw RuntimeException("[PREMIUM] Tidak dapat memuat konfigurasi selector.")
         val document = app.get(data).document
 
-        document.select(".mobius > .mirror > option")
+        document.select(cfg.playerSelector)
             .mapNotNull {
 
-                val value = it.attr("value")
+                val rawValue = it.attr(cfg.playerAttr)
 
-                if (value.isBlank()) {
+                if (rawValue.isBlank()) {
                     return@mapNotNull null
                 }
 
-                val decoded =
-                    base64Decode(value)
-                        ?: return@mapNotNull null
+                val decoded = if (cfg.useBase64) (base64Decode(rawValue) ?: return@mapNotNull null) else rawValue
 
                 val iframeSrc =
                     Jsoup.parse(decoded)
@@ -379,32 +363,6 @@ class Animasu : MainAPI() {
             else -> {
                 this.attr("abs:src")
             }
-        }
-    }
-}
-
-enum class AnimasuTagCategory(val title: String, val tagsList: List<String>) {
-    ACTION_ADVENTURE("Action & Adventure", listOf("Action", "Adventure", "Martial Arts", "Samurai", "Super Power", "Survival", "Military")),
-    COMEDY("Comedy", listOf("Comedy", "Gag Humor", "Parody")),
-    DRAMA_ROMANCE("Drama & Romance", listOf("Drama", "Romance", "Boys Love", "Girls Love", "School")),
-    FANTASY_SCIFI("Fantasy & Sci-Fi", listOf("Fantasy", "Sci-Fi", "Supernatural", "Isekai", "Magic", "Demons", "Vampire", "Mecha", "Space", "Time Travel", "Mythology")),
-    MYSTERY_HORROR("Mystery & Horror", listOf("Mystery", "Thriller", "Suspense", "Detective", "Police", "Psychological", "Horror", "Gore")),
-    SLICE_OF_LIFE("Slice of Life", listOf("Slice of Life", "Iyashikei", "Kids", "Workplace")),
-    SPORTS_GAMES("Sports & Games", listOf("Sports", "Racing", "Strategy Game", "Game")),
-    ARTS_CULTURE("Arts & Music", listOf("Music", "Idol", "Historical", "Performing Arts")),
-    MATURE("Mature & Ecchi", listOf("Ecchi", "Harem", "Reverse Harem")),
-    DEMOGRAPHICS("Demographics", listOf("Shounen", "Shoujo", "Seinen", "Josei")),
-    
-    MC_PERSONALITY_GOOD("MC: Kepribadian Baik", listOf("Ambisi", "Berjuang", "Beruntung", "Blakblakan", "Ceria", "Jenius", "Optimis", "Pemimpin", "Polos", "Semangat", "Setia", "Sopan", "Totalitas")),
-    MC_PERSONALITY_QUIRKY("MC: Sifat Negatif/Eksentrik", listOf("Anti-Sosial", "Berisik", "Cerewet", "Ceroboh", "Kejam", "Licik", "Mencolok", "Menyebalkan", "Mesum", "Narsis", "Pemalas", "Pemalu", "Penakut", "Pendiam", "Pesimis", "Slengekan", "Suram")),
-    MC_IDENTITY("MC: Identitas & Profesi", listOf("Anak-Anak", "Berbisnis", "Bounty Hunter", "Cewek", "Cowok", "Dewa", "Iblis", "Loli", "Monster", "Vampir")),
-    MC_TROPE("MC: Trope Anime", listOf("Badass", "Couple", "Dikagumi", "Disepelekan", "Ditakuti", "Legenda", "Overpower", "Terkutuk", "Tsundere", "Yandere", "Zero To Hero"));
-
-    companion object {
-        fun getCategoryByTag(tag: String): String {
-            return entries.find { category ->
-                category.tagsList.any { it.equals(tag, ignoreCase = true) }
-            }?.title ?: tag
         }
     }
 }

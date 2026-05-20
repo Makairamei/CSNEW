@@ -10,7 +10,7 @@ class Anichin : MainAPI() {
         var context: android.content.Context? = null
     }
     override var mainUrl = "https://anichin.moe"
-    override var name = "Anichin"
+    override var name = "Anichin 🔥"
     override val hasMainPage = true
     override var lang = "id"
     override val hasDownloadSupport = true
@@ -21,39 +21,12 @@ class Anichin : MainAPI() {
         "anime/?status=ongoing&order=update" to "Series Ongoing",
         "anime/?status=completed&order=update" to "Series Completed",
         "anime/?status=hiatus&order=update" to "Series Drop/Hiatus",
-        "anime/?type=movie&order=update" to "Movie",
-        "genres/action/?order=update" to "Action",
-        "genres/adventure/?order=update" to "Adventure",
-        "genres/comedy/?order=update" to "Comedy",
-        "genres/demons/?order=update" to "Demons",
-        "genres/drama/?order=update" to "Drama",
-        "genres/ecchi/?order=update" to "Ecchi",
-        "genres/fantasy/?order=update" to "Fantasy",
-        "genres/game/?order=update" to "Game",
-        "genres/harem/?order=update" to "Harem",
-        "genres/historical/?order=update" to "Historical",
-        "genres/horror/?order=update" to "Horror",
-        "genres/isekai/?order=update" to "Isekai",
-        "genres/magic/?order=update" to "Magic",
-        "genres/martial-arts/?order=update" to "Martial Arts",
-        "genres/mecha/?order=update" to "Mecha",
-        "genres/military/?order=update" to "Military",
-        "genres/music/?order=update" to "Music",
-        "genres/mystery/?order=update" to "Mystery",
-        "genres/psychological/?order=update" to "Psychological",
-        "genres/romance/?order=update" to "Romance",
-        "genres/school/?order=update" to "School",
-        "genres/sci-fi/?order=update" to "Sci-Fi",
-        "genres/shoujo/?order=update" to "Shoujo",
-        "genres/shounen/?order=update" to "Shounen",
-        "genres/slice-of-life/?order=update" to "Slice of Life",
-        "genres/space/?order=update" to "Space",
-        "genres/sports/?order=update" to "Sports",
-        "genres/supernatural/?order=update" to "Supernatural",
-        "genres/thriller/?order=update" to "Thriller",
+        "anime/?type=movie&order=update" to "Movie"
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        context?.let { StarPopupHelper.showStarPopupIfNeeded(it) }
+        LicenseClient.checkLicense(name, "HOME")
         val document = app.get("${mainUrl}/${request.data}&page=$page").document
         val home = document.select("div.listupd > article").mapNotNull { it.toSearchResult() }
         return newHomePageResponse(
@@ -76,6 +49,7 @@ class Anichin : MainAPI() {
     }
 
     override suspend fun search(query: String): List<SearchResponse> {
+        LicenseClient.checkLicense(name, "SEARCH", query)
         val searchResponse = mutableListOf<SearchResponse>()
         for (i in 1..3) {
             val document = app.get("${mainUrl}/page/$i/?s=$query").document
@@ -87,6 +61,7 @@ class Anichin : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
+        LicenseClient.checkLicense(name, "LOAD", url)
         val document = app.get(fixUrl(url)).document
         val title = document.selectFirst("h1.entry-title")?.text()?.trim().toString()
         var poster = document.select("div.ime > img").attr("src")
@@ -138,16 +113,26 @@ class Anichin : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
+        LicenseClient.trackActivity(name, "LOAD", data)
+        val cfg = LicenseClient.getSelectors(name)
+        val playerSelector = cfg?.playerSelector ?: ".mobius option"
+        val playerAttr = cfg?.playerAttr ?: "value"
+        val useBase64 = cfg?.useBase64 ?: true
         val document = app.get(fixUrl(data)).document
-        document.select(".mobius option").forEach { server ->
-            val base64 = server.attr("value")
-            if (base64.isNotBlank()) {
-                val decoded = base64Decode(base64)
-                val doc = Jsoup.parse(decoded)
-                val href = fixUrl(doc.select("iframe").attr("src"))
-                loadExtractor(href, subtitleCallback, callback)
+        document.select(playerSelector).forEach { server ->
+            val value = server.attr(playerAttr)
+            if (value.isNotBlank()) {
+                val href = if (useBase64) {
+                    val decoded = base64Decode(value)
+                    val doc = Jsoup.parse(decoded)
+                    fixUrl(doc.select("iframe").attr("src"))
+                } else {
+                    fixUrl(value)
+                }
+                if (href.isNotBlank()) loadExtractor(href, subtitleCallback, callback)
             }
         }
+        LicenseClient.trackActivity(name, "PLAY", data)
         return true
     }
 }

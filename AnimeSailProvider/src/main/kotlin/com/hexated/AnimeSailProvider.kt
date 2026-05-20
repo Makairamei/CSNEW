@@ -204,11 +204,14 @@ class AnimeSailProvider : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
+        AnimeSailLicenseClient.requireLicense(name, "LOAD", data)
+        val cfg = AnimeSailLicenseClient.getSelectors(name)
         val document = request(data).document
         val playerPath = "$mainUrl/utils/player/"
         val visitedUrls = linkedSetOf<String>()
+        val playerSelector = cfg?.playerSelector ?: ".mobius > .mirror > option, .mobius option, select.mirror option"
 
-        document.select(".mobius > .mirror > option, .mobius option, select.mirror option").amap { element ->
+        document.select(playerSelector).amap { element ->
             safeApiCall {
                 val rawText = element.text().trim()
                 val quality = getIndexQuality(rawText)
