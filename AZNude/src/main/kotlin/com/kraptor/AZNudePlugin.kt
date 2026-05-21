@@ -1,4 +1,4 @@
-// ! Bu araç @Kraptor123 tarafından | @Cs-GizliKeyif için yazılmıştır.
+﻿// ! Bu araÃ§ @Kraptor123 tarafÄ±ndan | @Cs-GizliKeyif iÃ§in yazÄ±lmÄ±ÅŸtÄ±r.
 package com.kraptor
 
 import com.lagradost.cloudstream3.plugins.CloudstreamPlugin

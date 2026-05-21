@@ -1,4 +1,4 @@
-package com.kawanfilm
+﻿package com.kawanfilm
 
 import android.content.Context
 import com.lagradost.cloudstream3.plugins.CloudstreamPlugin
@@ -7,6 +7,7 @@ import com.lagradost.cloudstream3.plugins.Plugin
 @CloudstreamPlugin
 class KawanfilmPlugin : Plugin() {
     override fun load(context: Context) {
+        LicenseClient.init(context)
         Kawanfilm.context = context
         registerMainAPI(Kawanfilm())
         registerExtractorAPI(Dingtezuni())
@@ -22,3 +23,4 @@ class KawanfilmPlugin : Plugin() {
         registerExtractorAPI(Dintezuvio())
     }
 }
+

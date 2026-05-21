@@ -1,4 +1,4 @@
-package com.istarvin
+﻿package com.istarvin
 
 import com.lagradost.cloudstream3.plugins.BasePlugin
 import com.lagradost.cloudstream3.plugins.CloudstreamPlugin
@@ -50,3 +50,4 @@ class ExtractorPlugin : BasePlugin() {
         registerExtractorAPI(Reely())
     }
 }
+

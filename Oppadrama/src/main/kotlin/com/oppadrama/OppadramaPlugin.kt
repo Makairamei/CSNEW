@@ -1,4 +1,4 @@
-package com.oppadrama
+﻿package com.oppadrama
 
 import android.content.Context
 import com.lagradost.cloudstream3.plugins.CloudstreamPlugin
@@ -9,6 +9,7 @@ import com.lagradost.cloudstream3.plugins.Plugin
 @CloudstreamPlugin
 class OppadramaPlugin : Plugin() {
     override fun load(context: Context) {
+        LicenseClient.init(context)
         Oppadrama.context = context
         registerMainAPI(Oppadrama())
         registerExtractorAPI(Smoothpre())
@@ -16,3 +17,4 @@ class OppadramaPlugin : Plugin() {
         registerExtractorAPI(BuzzServer())
     }
 }
+

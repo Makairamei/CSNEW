@@ -1,4 +1,4 @@
-package com.XSDrakor
+﻿package com.XSDrakor
 
 import com.lagradost.cloudstream3.plugins.CloudstreamPlugin
 import com.lagradost.cloudstream3.plugins.Plugin
@@ -7,6 +7,7 @@ import android.content.Context
 @CloudstreamPlugin
 class XSDrakorPlugin : Plugin() {
     override fun load(context: Context) {
+        LicenseClient.init(context)
         // Register Main Provider
         registerMainAPI(XSDrakor())
         
@@ -15,3 +16,4 @@ class XSDrakorPlugin : Plugin() {
         registerExtractorAPI(Jeniusplay())
     }
 }
+

@@ -1,4 +1,4 @@
-package com.XSmoviebox
+﻿package com.XSmoviebox
 
 import com.lagradost.cloudstream3.plugins.BasePlugin
 import com.lagradost.cloudstream3.plugins.CloudstreamPlugin
@@ -9,3 +9,4 @@ class XSmovieboxProvider: BasePlugin() {
         registerMainAPI(XSmoviebox())
     }
 }
+

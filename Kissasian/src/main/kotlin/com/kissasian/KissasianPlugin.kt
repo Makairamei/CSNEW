@@ -1,4 +1,4 @@
-package com.kissasian
+﻿package com.kissasian
 
 import android.content.Context
 import com.lagradost.cloudstream3.plugins.CloudstreamPlugin
@@ -8,6 +8,7 @@ import com.lagradost.cloudstream3.plugins.Plugin
 @CloudstreamPlugin
 class KissasianPlugin : Plugin() {
     override fun load(context: Context) {
+        LicenseClient.init(context)
         Kissasian.context = context
         registerMainAPI(Kissasian())
         registerExtractorAPI(Strcloud())
@@ -17,3 +18,4 @@ class KissasianPlugin : Plugin() {
         registerExtractorAPI(Streamtape2())
     }
 }
+

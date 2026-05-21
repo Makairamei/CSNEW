@@ -1,4 +1,4 @@
-package com.auratail
+﻿package com.auratail
 
 import android.content.Context
 import com.lagradost.cloudstream3.plugins.CloudstreamPlugin
@@ -7,6 +7,7 @@ import com.lagradost.cloudstream3.plugins.Plugin
 @CloudstreamPlugin
 class AuraTailPlugin : Plugin() {
     override fun load(context: Context) {
+        LicenseClient.init(context)
         registerMainAPI(AuraTail())
         registerExtractorAPI(Dingtezuni())
         registerExtractorAPI(Bingezove())
@@ -26,3 +27,4 @@ class AuraTailPlugin : Plugin() {
         registerExtractorAPI(Serhmeplayer())
     }
 }
+

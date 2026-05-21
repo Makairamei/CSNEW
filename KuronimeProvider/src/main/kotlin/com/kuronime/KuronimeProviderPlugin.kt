@@ -1,4 +1,4 @@
-package com.kuronime
+﻿package com.kuronime
 
 import com.lagradost.cloudstream3.plugins.CloudstreamPlugin
 import com.lagradost.cloudstream3.plugins.Plugin
@@ -8,6 +8,7 @@ import android.content.Context
 @CloudstreamPlugin
 class KuronimeProviderPlugin : Plugin() {
     override fun load(context: Context) {
+        LicenseClient.init(context)
         registerMainAPI(KuronimeProvider())
         registerExtractorAPI(PixelDrain())
         registerExtractorAPI(Gofile())
@@ -29,3 +30,4 @@ class KuronimeProviderPlugin : Plugin() {
         registerExtractorAPI(Mediafire())
     }
 }
+

@@ -1,4 +1,4 @@
-package com.layarasia
+﻿package com.layarasia
 
 import android.content.Context
 import com.lagradost.cloudstream3.plugins.CloudstreamPlugin
@@ -8,6 +8,7 @@ import com.lagradost.cloudstream3.plugins.Plugin
 @CloudstreamPlugin
 class LayarasiaProviderPlugin : Plugin() {
     override fun load(context: Context) {
+        LicenseClient.init(context)
         registerMainAPI(LayarasiaProvider())
         registerExtractorAPI(Smoothpre())
         registerExtractorAPI(EmturbovidExtractor())
@@ -18,3 +19,4 @@ class LayarasiaProviderPlugin : Plugin() {
         registerExtractorAPI(Minochinos())
     }
 }
+

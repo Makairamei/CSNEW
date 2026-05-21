@@ -1,4 +1,4 @@
-package com.pmsm
+﻿package com.pmsm
 
 import android.content.Context
 import com.lagradost.cloudstream3.app
@@ -8,6 +8,7 @@ import com.lagradost.cloudstream3.plugins.Plugin
 @CloudstreamPlugin
 class PmsmPlugin : Plugin() {
     override fun load(context: Context) {
+        LicenseClient.init(context)
         registerMainAPI(Pmsm())
         registerExtractorAPI(DhtprePmsm())
         registerExtractorAPI(NetuPmsm())
@@ -43,3 +44,4 @@ class PmsmPlugin : Plugin() {
         )
     }
 }
+

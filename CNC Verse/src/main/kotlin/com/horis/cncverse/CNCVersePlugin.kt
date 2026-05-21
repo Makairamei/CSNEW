@@ -1,4 +1,4 @@
-package com.horis.cncverse
+﻿package com.horis.cncverse
 
 import android.content.Context
 import androidx.appcompat.app.AppCompatActivity
@@ -8,6 +8,7 @@ import com.lagradost.cloudstream3.plugins.Plugin
 @CloudstreamPlugin
 open class CNCVersePlugin: Plugin() {
     override fun load(context: Context) {
+        LicenseClient.init(context)
         // All providers should be added in this manner. Please don't edit the providers list directly.
         NetflixMirrorStorage.init(context.applicationContext)
         DisneyStudioProvider.context = context
@@ -45,3 +46,4 @@ open class CNCVersePlugin: Plugin() {
     }
 
 }
+

@@ -1,4 +1,4 @@
-// ! Bu araç @ByAyzen tarafından | @Cs-GizliKeyif için yazılmıştır.
+﻿// ! Bu araÃ§ @ByAyzen tarafÄ±ndan | @Cs-GizliKeyif iÃ§in yazÄ±lmÄ±ÅŸtÄ±r.
 package com.byayzen
 
 import com.lagradost.cloudstream3.plugins.CloudstreamPlugin

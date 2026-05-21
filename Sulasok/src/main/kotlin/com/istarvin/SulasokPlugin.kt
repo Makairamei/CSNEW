@@ -1,4 +1,4 @@
-package com.istarvin
+﻿package com.istarvin
 
 import com.lagradost.cloudstream3.plugins.BasePlugin
 import com.lagradost.cloudstream3.plugins.CloudstreamPlugin
@@ -9,3 +9,4 @@ class SulasokPlugin : BasePlugin() {
         registerMainAPI(Sulasok())
     }
 }
+

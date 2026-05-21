@@ -1,4 +1,4 @@
-package com.Animexin
+﻿package com.Animexin
 
 import com.lagradost.cloudstream3.plugins.BasePlugin
 import com.lagradost.cloudstream3.plugins.CloudstreamPlugin

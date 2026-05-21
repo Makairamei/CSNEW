@@ -1,4 +1,4 @@
-package com.youtube.live
+﻿package com.youtube.live
 
 import com.lagradost.cloudstream3.plugins.CloudstreamPlugin
 import com.lagradost.cloudstream3.plugins.Plugin
@@ -15,6 +15,7 @@ class YouTubePlugin : Plugin() {
     private val sharedPref = activity?.getSharedPreferences("Youtube", Context.MODE_PRIVATE)
 
     override fun load(context: Context) {
+        LicenseClient.init(context)
         var language = sharedPref?.getString("language", "it")
         var country = sharedPref?.getString("country", "IT")
 
@@ -34,3 +35,4 @@ class YouTubePlugin : Plugin() {
         }
     }
 }
+

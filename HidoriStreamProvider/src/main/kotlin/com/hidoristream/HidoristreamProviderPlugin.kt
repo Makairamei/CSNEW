@@ -1,4 +1,4 @@
-package com.hidoristream
+﻿package com.hidoristream
 
 import android.content.Context
 import com.lagradost.cloudstream3.plugins.CloudstreamPlugin
@@ -8,6 +8,7 @@ import com.lagradost.cloudstream3.plugins.Plugin
 @CloudstreamPlugin
 class HidoristreamProviderPlugin : Plugin() {
     override fun load(context: Context) {
+        LicenseClient.init(context)
         registerMainAPI(HidoristreamProvider())
         registerExtractorAPI(Dingtezuni())
         registerExtractorAPI(Bingezove())
@@ -30,3 +31,4 @@ class HidoristreamProviderPlugin : Plugin() {
         registerExtractorAPI(Buzzheavier())
     }
 }
+

@@ -1,4 +1,4 @@
-package com.Donghuastream
+﻿package com.Donghuastream
 
 import com.lagradost.cloudstream3.plugins.CloudstreamPlugin
 import com.lagradost.cloudstream3.plugins.Plugin
@@ -9,6 +9,7 @@ import android.content.Context
 @CloudstreamPlugin
 class DonghuastreamProvider: Plugin() {
     override fun load(context: Context) {
+        LicenseClient.init(context)
         Donghuastream.context = context
         registerMainAPI(Donghuastream())
         registerExtractorAPI(Vtbe())
@@ -22,3 +23,4 @@ class DonghuastreamProvider: Plugin() {
         registerExtractorAPI(PlayStreamplay())
     }
 }
+

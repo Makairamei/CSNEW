@@ -1,4 +1,4 @@
-package com.istarvin
+﻿package com.istarvin
 
 import com.lagradost.cloudstream3.plugins.CloudstreamPlugin
 import com.lagradost.cloudstream3.plugins.Plugin
@@ -7,6 +7,7 @@ import android.content.Context
 @CloudstreamPlugin
 class MissAVPlugin : Plugin() {
     override fun load(context: Context) {
+        LicenseClient.init(context)
         registerMainAPI(MissAV())
     }
 }

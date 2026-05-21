@@ -1,4 +1,4 @@
-package com.JAVHd
+﻿package com.JAVHd
 
 import com.lagradost.cloudstream3.plugins.CloudstreamPlugin
 import com.lagradost.cloudstream3.plugins.Plugin
@@ -8,6 +8,7 @@ import com.lagradost.cloudstream3.extractors.StreamTape
 @CloudstreamPlugin
 class JAVHDPlugin: Plugin() {
     override fun load(context: Context) {
+        LicenseClient.init(context)
         registerMainAPI(JAVHDProvider())
         registerExtractorAPI(StreamTape())
         registerExtractorAPI(Stbturbo())
