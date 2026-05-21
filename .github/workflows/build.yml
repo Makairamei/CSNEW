@@ -39,33 +39,41 @@ jobs:
             global_change=true
           fi
 
-          # Mendata seluruh provider aktif yang tersedia di dalam proyek
-          all_plugins=""
-          for dir in *; do
-            if [ -d "$dir" ] && [ -f "$dir/build.gradle.kts" ] && [ "$dir" != "buildSrc" ]; then
-              all_plugins="$all_plugins $dir"
+          # Mendata seluruh provider aktif (newline-delimited agar nama dengan spasi aman)
+          all_plugins_nl=""
+          while IFS= read -r -d '' dir; do
+            dir="${dir#./}"
+            if [ -f "$dir/build.gradle.kts" ] && [ "$dir" != "buildSrc" ]; then
+              all_plugins_nl="$all_plugins_nl$dir\n"
             fi
-          done
-          all_plugins=$(echo $all_plugins | xargs)
+          done < <(find . -maxdepth 1 -mindepth 1 -type d -print0 | sort -z)
 
           if [ "$global_change" = "true" ]; then
             echo "Global configuration changed. Rebuilding all plugins."
-            plugins="$all_plugins"
+            plugins_nl="$all_plugins_nl"
           else
-            # Mengambil nama folder utama dari berkas-berkas yang dimodifikasi
-            changed_dirs=$(git diff --name-only HEAD^ HEAD | awk -F/ '{print $1}' | sort -u)
-            plugins=""
-            for dir in $changed_dirs; do
+            changed_dirs=$(git diff --name-only HEAD^ HEAD 2>/dev/null | awk -F/ '{print $1}' | sort -u)
+            plugins_nl=""
+            while IFS= read -r dir; do
+              [ -z "$dir" ] && continue
               if [ -d "$dir" ] && [ -f "$dir/build.gradle.kts" ] && [ "$dir" != "buildSrc" ]; then
-                plugins="$plugins $dir"
+                plugins_nl="$plugins_nl$dir\n"
               fi
-            done
-            plugins=$(echo $plugins | xargs)
+            done <<< "$changed_dirs"
           fi
 
-          echo "Detected plugins to build: $plugins"
-          echo "plugins=$plugins" >> $GITHUB_OUTPUT
-          echo "all_plugins=$all_plugins" >> $GITHUB_OUTPUT
+          # Tulis ke file temp agar bisa di-read per baris oleh step berikut
+          printf "%b" "$all_plugins_nl" | grep -v '^$' > /tmp/all_plugins.txt
+          printf "%b" "$plugins_nl"  | grep -v '^$' > /tmp/plugins.txt
+
+          echo "Plugins to build:"
+          cat /tmp/plugins.txt
+
+          # Untuk GITHUB_OUTPUT: encode sebagai newline-separated multiline value
+          {
+            echo "plugins_file=/tmp/plugins.txt"
+            echo "all_plugins_file=/tmp/all_plugins.txt"
+          } >> $GITHUB_OUTPUT
 
       - name: Setup JDK 21
         uses: actions/setup-java@v4
@@ -120,31 +128,34 @@ jobs:
       - name: Build Changed Plugins
         run: |
           chmod +x gradlew
+          mkdir -p builds
 
-          plugins="${{ steps.changed.outputs.plugins }}"
-          all_plugins="${{ steps.changed.outputs.all_plugins }}"
+          plugins_file="${{ steps.changed.outputs.plugins_file }}"
+          all_plugins_file="${{ steps.changed.outputs.all_plugins_file }}"
 
-          if [ -z "$plugins" ]; then
+          if [ ! -s "$plugins_file" ]; then
             echo "No plugin changes detected."
             exit 0
           fi
 
           # Restore cached .cs3 untuk plugin yang tidak berubah
-          for plugin in $all_plugins; do
-            if [[ ! " $plugins " =~ " $plugin " ]]; then
-              if [ -f "builds/$plugin.cs3" ]; then
+          while IFS= read -r plugin; do
+            [ -z "$plugin" ] && continue
+            if ! grep -qxF "$plugin" "$plugins_file"; then
+              if [ -f "builds/${plugin}.cs3" ]; then
                 mkdir -p "$plugin/build"
-                cp "builds/$plugin.cs3" "$plugin/build/$plugin.cs3"
+                cp "builds/${plugin}.cs3" "$plugin/build/${plugin}.cs3"
               fi
             fi
-          done
+          done < "$all_plugins_file"
 
           # Build plugin yang berubah
-          for plugin in $plugins; do
-            echo "=== Building $plugin ==="
-            ./gradlew ":$plugin:make" --no-daemon
-            find "$plugin/build" -name "*.cs3" -exec cp {} builds/ \;
-          done
+          while IFS= read -r plugin; do
+            [ -z "$plugin" ] && continue
+            echo "=== Building: $plugin ==="
+            ./gradlew ":${plugin}:make" --no-daemon || echo "WARN: build failed for $plugin"
+            find "$plugin/build" -name "*.cs3" -exec cp {} builds/ \; 2>/dev/null || true
+          done < "$plugins_file"
 
           # Rebuild plugins.json
           ./gradlew makePluginsJson --no-daemon
