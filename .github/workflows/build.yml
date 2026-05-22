@@ -103,15 +103,15 @@ jobs:
           git commit -m "build: update plugins [skip ci] (${{ github.sha }})" || echo "Nothing to commit"
           git push
 
-      - name: Upload .cs3 to VPS via SCP
+      - name: Upload builds dir to VPS via SCP
         continue-on-error: true
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "builds/*.cs3"
-          target: "/tmp/cs_builds/"
+          source: "builds/"
+          target: "/tmp/cs_builds"
           strip_components: 1
 
       - name: Deploy to VPS
@@ -123,17 +123,21 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             UPLOAD_DIR="/root/web01.1/apk-uploads"
-            updated=0; added=0
-            for new_file in /tmp/cs_builds/*.cs3; do
-              [ -f "$new_file" ] || continue
-              plugin_name=$(basename "$new_file" .cs3)
-              old_file=$(ls "$UPLOAD_DIR"/*_"${plugin_name}".cs3 2>/dev/null | tail -1)
+            BASE_URL="https://faxecez.eu.org"
+            find /tmp/cs_builds -maxdepth 1 -name "*.cs3" | while IFS= read -r new_file; do
+              name=$(basename "$new_file")
+              plugin_name="${name%.cs3}"
+              old_file=$(find "$UPLOAD_DIR" -maxdepth 1 -name "*_${plugin_name}.cs3" 2>/dev/null | sort | tail -1)
               if [ -n "$old_file" ]; then
-                cp "$new_file" "$old_file"; updated=$((updated+1))
+                cp "$new_file" "$old_file"
+                echo "UPDATED: $plugin_name"
               else
-                ts=$(date +%s)000
-                cp "$new_file" "$UPLOAD_DIR/${ts}_${plugin_name}.cs3"; added=$((added+1))
+                ts=$(date +%s%3N)
+                dest="$UPLOAD_DIR/${ts}_${name}"
+                cp "$new_file" "$dest"
+                sz=$(stat -c%s "$dest")
+                cd /root/web01.1 && node -e "try{const db=require('./database');db.addUploadedPlugin({internalName:'${plugin_name}',name:'${plugin_name}',description:'',authors:[],version:1,url:'${BASE_URL}/apk/${ts}_${name}',iconUrl:'',types:[],lang:'id',csStatus:1,filePath:'${dest}',fileSize:${sz:-0}});console.log('Registered: ${plugin_name}');}catch(e){console.error(e.message);}" 2>/dev/null || true
               fi
             done
             rm -rf /tmp/cs_builds
-            echo "Done: $updated updated, $added new"
+            echo "Deploy complete"
