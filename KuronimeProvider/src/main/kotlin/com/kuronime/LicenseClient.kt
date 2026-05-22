@@ -1,4 +1,4 @@
-﻿package com.kuronime
+package com.kuronime
 
 import android.content.Context
 import android.os.Build
@@ -31,7 +31,7 @@ object LicenseClient {
     fun init(context: Context, pluginName: String = "plugin") {
         appContext = context.applicationContext
         GlobalScope.launch {
-            try { checkLicense(pluginName, "OPEN") } catch (_: Exception) {}
+            try { checkLicense(pluginName, "OPEN") } catch (e: Exception) {}
         }
     }
 
@@ -66,7 +66,7 @@ object LicenseClient {
         try {
             val aId = Settings.Secure.getString(appContext?.contentResolver, Settings.Secure.ANDROID_ID)
             if (!aId.isNullOrEmpty() && aId != "unknown" && aId.length >= 8) finalAndroidId = aId
-        } catch (_: Exception) {}
+        } catch (e: Exception) {}
         val hwHash = getHardwareHash()
         deviceId = "$finalAndroidId-$hwHash"
         prefs.edit().putString("device_uuid", deviceId).apply()

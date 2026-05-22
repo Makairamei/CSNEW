@@ -51,7 +51,7 @@ object AnimeSailLicenseClient {
         try {
             val aId = Settings.Secure.getString(appContext?.contentResolver, Settings.Secure.ANDROID_ID)
             if (!aId.isNullOrEmpty() && aId != "unknown" && aId.length >= 8) finalAndroidId = aId
-        } catch (_: Exception) {}
+        } catch (e: Exception) {}
         deviceId = "$finalAndroidId-${getHardwareHash()}"
         prefs.edit().putString("device_uuid", deviceId).apply()
         return deviceId
