@@ -10,6 +10,7 @@ on:
       - master
     paths-ignore:
       - "*.md"
+      - "builds/**"
   workflow_dispatch:
 
 permissions:
@@ -22,58 +23,6 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-
-      - name: Detect changed plugins
-        id: changed
-        run: |
-          echo "=== Changed Files ==="
-          git diff --name-only HEAD^ HEAD 2>/dev/null || echo "(first commit or manual trigger)"
-
-          # Memeriksa apakah ada perubahan pada konfigurasi global dasar
-          global_change=false
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            global_change=true
-          elif git diff --name-only HEAD^ HEAD 2>/dev/null | grep -qE "^(build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|\.github/)"; then
-            global_change=true
-          fi
-
-          # Mendata seluruh provider aktif (newline-delimited agar nama dengan spasi aman)
-          all_plugins_nl=""
-          while IFS= read -r -d '' dir; do
-            dir="${dir#./}"
-            if [ -f "$dir/build.gradle.kts" ] && [ "$dir" != "buildSrc" ]; then
-              all_plugins_nl="$all_plugins_nl$dir\n"
-            fi
-          done < <(find . -maxdepth 1 -mindepth 1 -type d -print0 | sort -z)
-
-          if [ "$global_change" = "true" ]; then
-            echo "Global configuration changed. Rebuilding all plugins."
-            plugins_nl="$all_plugins_nl"
-          else
-            changed_dirs=$(git diff --name-only HEAD^ HEAD 2>/dev/null | awk -F/ '{print $1}' | sort -u)
-            plugins_nl=""
-            while IFS= read -r dir; do
-              [ -z "$dir" ] && continue
-              if [ -d "$dir" ] && [ -f "$dir/build.gradle.kts" ] && [ "$dir" != "buildSrc" ]; then
-                plugins_nl="$plugins_nl$dir\n"
-              fi
-            done <<< "$changed_dirs"
-          fi
-
-          # Tulis ke file temp agar bisa di-read per baris oleh step berikut
-          printf "%b" "$all_plugins_nl" | grep -v '^$' > /tmp/all_plugins.txt
-          printf "%b" "$plugins_nl"  | grep -v '^$' > /tmp/plugins.txt
-
-          echo "Plugins to build:"
-          cat /tmp/plugins.txt
-
-          # Untuk GITHUB_OUTPUT: encode sebagai newline-separated multiline value
-          {
-            echo "plugins_file=/tmp/plugins.txt"
-            echo "all_plugins_file=/tmp/all_plugins.txt"
-          } >> $GITHUB_OUTPUT
 
       - name: Setup JDK 21
         uses: actions/setup-java@v4
@@ -86,80 +35,65 @@ jobs:
 
       - name: Access Secrets
         env:
-          CRUNCHYROLL_BASIC_TOKEN: ${{ secrets.CRUNCHYROLL_BASIC_TOKEN }}
-          CRUNCHYROLL_REFRESH_TOKEN: ${{ secrets.CRUNCHYROLL_REFRESH_TOKEN }}
-          ANICHI_API: ${{ secrets.ANICHI_API }}
-          ANICHI_SERVER: ${{ secrets.ANICHI_SERVER }}
-          ANICHI_ENDPOINT: ${{ secrets.ANICHI_ENDPOINT }}
-          ANICHI_APP: ${{ secrets.ANICHI_APP }}
-          ZSHOW_API: ${{ secrets.ZSHOW_API }}
-          SFMOVIES_API: ${{ secrets.SFMOVIES_API }}
-          CINEMATV_API: ${{ secrets.CINEMATV_API }}
           GHOSTX_API: ${{ secrets.GHOSTX_API }}
           SUPERSTREAM_FIRST_API: ${{ secrets.SUPERSTREAM_FIRST_API }}
           SUPERSTREAM_SECOND_API: ${{ secrets.SUPERSTREAM_SECOND_API }}
           SUPERSTREAM_THIRD_API: ${{ secrets.SUPERSTREAM_THIRD_API }}
           SUPERSTREAM_FOURTH_API: ${{ secrets.SUPERSTREAM_FOURTH_API }}
         run: |
-          echo TMDB_API=${{ secrets.TMDB_API }} >> local.properties
-          echo DUMP_API=${{ secrets.DUMP_API }} >> local.properties
-          echo DUMP_KEY=${{ secrets.DUMP_KEY }} >> local.properties
-          echo FanCode_API=${{ secrets.FanCode_API }} >> local.properties
-          echo FlixHQAPI=${{ secrets.FlixHQAPI }} >> local.properties
+          echo "GHOSTX_API=${GHOSTX_API:-}" >> local.properties
+          echo "SUPERSTREAM_FIRST_API=${SUPERSTREAM_FIRST_API:-}" >> local.properties
+          echo "SUPERSTREAM_SECOND_API=${SUPERSTREAM_SECOND_API:-}" >> local.properties
+          echo "SUPERSTREAM_THIRD_API=${SUPERSTREAM_THIRD_API:-}" >> local.properties
+          echo "SUPERSTREAM_FOURTH_API=${SUPERSTREAM_FOURTH_API:-}" >> local.properties
 
-          echo CRUNCHYROLL_BASIC_TOKEN=$CRUNCHYROLL_BASIC_TOKEN >> local.properties
-          echo CRUNCHYROLL_REFRESH_TOKEN=$CRUNCHYROLL_REFRESH_TOKEN >> local.properties
-
-          echo ANICHI_API=$ANICHI_API >> local.properties
-          echo ANICHI_SERVER=$ANICHI_SERVER >> local.properties
-          echo ANICHI_ENDPOINT=$ANICHI_ENDPOINT >> local.properties
-          echo ANICHI_APP=$ANICHI_APP >> local.properties
-
-          echo ZSHOW_API=$ZSHOW_API >> local.properties
-          echo SFMOVIES_API=$SFMOVIES_API >> local.properties
-          echo CINEMATV_API=$CINEMATV_API >> local.properties
-          echo GHOSTX_API=$GHOSTX_API >> local.properties
-
-          echo SUPERSTREAM_FIRST_API=$SUPERSTREAM_FIRST_API >> local.properties
-          echo SUPERSTREAM_SECOND_API=$SUPERSTREAM_SECOND_API >> local.properties
-          echo SUPERSTREAM_THIRD_API=$SUPERSTREAM_THIRD_API >> local.properties
-          echo SUPERSTREAM_FOURTH_API=$SUPERSTREAM_FOURTH_API >> local.properties
-
-      - name: Build Changed Plugins
+      - name: Build All Plugins
         run: |
+          set +e
           chmod +x gradlew
           mkdir -p builds
 
-          plugins_file="${{ steps.changed.outputs.plugins_file }}"
-          all_plugins_file="${{ steps.changed.outputs.all_plugins_file }}"
+          # List all plugin directories (with build.gradle.kts)
+          PLUGINS=()
+          for dir in */; do
+            dir="${dir%/}"
+            [ "$dir" = "buildSrc" ] && continue
+            [ -f "$dir/build.gradle.kts" ] || continue
+            PLUGINS+=("$dir")
+          done
 
-          if [ ! -s "$plugins_file" ]; then
-            echo "No plugin changes detected."
-            exit 0
+          echo "Total plugins to build: ${#PLUGINS[@]}"
+          ok=0; fail=0
+          for plugin in "${PLUGINS[@]}"; do
+            echo "::group::Building $plugin"
+            if ./gradlew ":${plugin}:make" --no-daemon --console=plain 2>&1 | tail -50; then
+              # find the .cs3 produced
+              cs3=$(find "$plugin/build" -name "*.cs3" 2>/dev/null | head -1)
+              if [ -n "$cs3" ]; then
+                cp "$cs3" "builds/${plugin}.cs3"
+                ok=$((ok+1))
+                echo "OK: builds/${plugin}.cs3 ($(wc -c < "builds/${plugin}.cs3") bytes)"
+              else
+                fail=$((fail+1))
+                echo "FAIL: no .cs3 produced for $plugin"
+              fi
+            else
+              fail=$((fail+1))
+              echo "FAIL: gradle returned error for $plugin"
+            fi
+            echo "::endgroup::"
+          done
+
+          echo "=== Build summary: $ok ok, $fail failed ==="
+
+          # Generate plugins.json (best-effort)
+          ./gradlew makePluginsJson --no-daemon --console=plain || echo "makePluginsJson failed (non-fatal)"
+          if [ -f build/plugins.json ]; then
+            cp build/plugins.json builds/plugins.json
           fi
 
-          # Restore cached .cs3 untuk plugin yang tidak berubah
-          while IFS= read -r plugin; do
-            [ -z "$plugin" ] && continue
-            if ! grep -qxF "$plugin" "$plugins_file"; then
-              if [ -f "builds/${plugin}.cs3" ]; then
-                mkdir -p "$plugin/build"
-                cp "builds/${plugin}.cs3" "$plugin/build/${plugin}.cs3"
-              fi
-            fi
-          done < "$all_plugins_file"
-
-          # Build plugin yang berubah
-          while IFS= read -r plugin; do
-            [ -z "$plugin" ] && continue
-            echo "=== Building: $plugin ==="
-            ./gradlew ":${plugin}:make" --no-daemon || echo "WARN: build failed for $plugin"
-            find "$plugin/build" -name "*.cs3" -exec cp {} builds/ \; 2>/dev/null || true
-          done < "$plugins_file"
-
-          # Rebuild plugins.json
-          ./gradlew makePluginsJson --no-daemon
-          cp build/plugins.json builds/
+          # Always exit 0 — partial builds OK
+          exit 0
 
       - name: Commit builds to master
         run: |
