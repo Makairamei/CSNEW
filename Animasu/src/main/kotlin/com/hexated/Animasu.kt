@@ -1,4 +1,4 @@
-package com.hexated
+﻿package com.hexated
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.LoadResponse.Companion.addAniListId
@@ -60,7 +60,7 @@ class Animasu : MainAPI() {
         page: Int,
         request: MainPageRequest
     ): HomePageResponse {
-
+        LicenseClient.requireLicense(name, "HOME")
         val document =
             app.get("$mainUrl/pencarian/?${request.data}&halaman=$page").document
 

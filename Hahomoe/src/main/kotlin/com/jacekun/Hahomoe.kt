@@ -1,4 +1,4 @@
-package com.jacekun
+﻿package com.jacekun
 
 import android.annotation.SuppressLint
 import android.util.Log
@@ -35,6 +35,7 @@ class Hahomoe : MainAPI() {
         page: Int,
         request: MainPageRequest
     ): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val items = ArrayList<HomePageList>()
         val soup = app.get(mainUrl).document
         for (section in soup.select("#content > section")) {

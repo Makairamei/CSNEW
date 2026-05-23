@@ -1,4 +1,4 @@
-package com.indo
+﻿package com.indo
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.ExtractorLink
@@ -19,6 +19,7 @@ class Rebahin : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val doc = app.get(request.data + page).document
         val home = doc.select("article, div.item").mapNotNull { article ->
             val a = article.selectFirst("a[href]") ?: return@mapNotNull null

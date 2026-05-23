@@ -1,4 +1,4 @@
-package com.Anichinmoe
+﻿package com.Anichinmoe
 
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
@@ -25,6 +25,7 @@ class Anichin : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         context?.let { StarPopupHelper.showStarPopupIfNeeded(it) }
         LicenseClient.checkLicense(name, "HOME")
         val document = app.get("${mainUrl}/${request.data}&page=$page").document

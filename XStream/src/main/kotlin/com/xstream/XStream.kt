@@ -1,4 +1,4 @@
-package com.xstream
+﻿package com.xstream
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
@@ -36,6 +36,7 @@ open class XStream : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val url = "https://api.themoviedb.org/3/${request.data}&api_key=$tmdbApiKey&language=en-US&page=$page"
         val response = app.get(url).parsedSafe<TmdbResponse>() ?: return newHomePageResponse(emptyList())
 

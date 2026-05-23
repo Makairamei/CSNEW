@@ -1,4 +1,4 @@
-package com.nomat
+﻿package com.nomat
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
@@ -38,6 +38,7 @@ class Nomat : MainAPI() {
 )
 
    override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+    LicenseClient.requireLicense(name, "HOME")
     val url = "$mainUrl/${request.data}/$page/"
     val document = app.get(url).document
 

@@ -1,4 +1,4 @@
-package com.Mangoporn
+﻿package com.Mangoporn
 
 //import android.util.Log
 import org.jsoup.nodes.Element
@@ -47,6 +47,7 @@ class Mangoporn : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+            LicenseClient.requireLicense(name, "HOME")
             val document = app.get("$mainUrl/${request.data}/page/$page").document
             val home = document.select("div.items > article")
                 .mapNotNull { it.toSearchResult() }

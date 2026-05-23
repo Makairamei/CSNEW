@@ -1,4 +1,4 @@
-// ! Bu araç @Kraptor123 tarafından | @Cs-GizliKeyif için yazılmıştır.
+﻿// ! Bu araç @Kraptor123 tarafından | @Cs-GizliKeyif için yazılmıştır.
 
 package com.kraptor
 
@@ -63,6 +63,7 @@ class JavGuru : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         LicenseClient.checkLicense(name, "HOME")
         val url = if (page == 1) {
             "${request.data}/"

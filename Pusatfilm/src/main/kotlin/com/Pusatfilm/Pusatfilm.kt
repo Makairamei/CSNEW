@@ -1,4 +1,4 @@
-package com.pusatfilm
+﻿package com.pusatfilm
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.httpsify
@@ -25,6 +25,7 @@ class Pusatfilm : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val doc = app.get(request.data.format(page)).document
         val home = doc.select("article").mapNotNull { article ->
             val a = article.selectFirst("a") ?: return@mapNotNull null

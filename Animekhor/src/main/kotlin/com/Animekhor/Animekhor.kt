@@ -1,4 +1,4 @@
-package com.Animekhor
+﻿package com.Animekhor
 
 import com.Animekhor.LicenseClient
 
@@ -34,6 +34,7 @@ open class Animekhor : MainAPI() {
         page: Int,
         request: MainPageRequest
     ): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         LicenseClient.checkLicense(name, "HOME")
 
         val document = app.get(

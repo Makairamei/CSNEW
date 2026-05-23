@@ -1,4 +1,4 @@
-package com.filmkita
+﻿package com.filmkita
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
@@ -29,6 +29,7 @@ class Filmkita : MainAPI() {
         )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val document = app.get(fixUrl(request.data.format(page))).document
         val home = document.select("article.item").mapNotNull { it.toSearchResult() }
         return newHomePageResponse(request.name, home)

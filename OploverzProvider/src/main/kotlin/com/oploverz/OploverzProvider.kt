@@ -1,4 +1,4 @@
-package com.oploverz
+﻿package com.oploverz
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.lagradost.cloudstream3.*
@@ -51,6 +51,7 @@ class OploverzProvider : MainAPI() {
         page: Int,
         request: MainPageRequest
     ): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val home = app.get("$backAPI/api/episodes?page=$page&pageSize=24&sort=${request.data}")
             .parsedSafe<Anime>()?.data?.map {
                 it.toSearchResult()

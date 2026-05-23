@@ -1,4 +1,4 @@
-package recloudstream
+﻿package recloudstream
 
 import recloudstream.LicenseClient
 
@@ -27,6 +27,7 @@ class DailymotionProvider : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         LicenseClient.checkLicense(name, "HOME")
         val url = "https://api.dailymotion.com/videos?fields=id,title,thumbnail_360_url&limit=20&page=$page&${request.data}"
         val response = app.get(url).text

@@ -1,4 +1,4 @@
-
+﻿
 package com.byayzen
 
 import com.byayzen.LicenseClient
@@ -49,6 +49,7 @@ class KissKH : MainAPI() {
         page: Int,
         request: MainPageRequest
     ): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         LicenseClient.checkLicense(name, "HOME")
         val home = app.get("$mainUrl/api/DramaList/List?page=$page${request.data}")
             .parsedSafe<Responses>()?.data

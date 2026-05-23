@@ -1,4 +1,4 @@
-package com.hexated
+﻿package com.hexated
 
 import android.annotation.SuppressLint
 import android.os.Handler
@@ -79,6 +79,7 @@ class AnimeSailProvider : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val document = request(request.data + page).document
         val home = document.select("div.listupd article, article").mapNotNull {
             it.toSearchResult()

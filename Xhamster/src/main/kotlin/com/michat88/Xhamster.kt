@@ -1,4 +1,4 @@
-package com.michat88
+﻿package com.michat88
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.lagradost.cloudstream3.*
@@ -93,6 +93,7 @@ class Xhamster : MainAPI() {
         page: Int,
         request: MainPageRequest
     ): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         // Logika paginasi ini sudah mendukung struktur /kategori/nama-kategori/2 untuk xHamster
         val pageUrl = if (page == 1) request.data else "${request.data.removeSuffix("/")}/$page"
         val html = app.get(pageUrl, headers = headers).text

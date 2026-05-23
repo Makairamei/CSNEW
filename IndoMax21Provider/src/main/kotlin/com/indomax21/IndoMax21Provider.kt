@@ -1,4 +1,4 @@
-package com.indomax21
+﻿package com.indomax21
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
@@ -33,6 +33,7 @@ class IndoMax21Provider : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse? {
+        LicenseClient.requireLicense(name, "HOME")
         val url = if (page == 1) request.data else "${request.data}page/$page/"
         val document = app.get(url).document
         

@@ -1,4 +1,4 @@
-// ! Bu araç @Kraptor123 tarafından | @Cs-GizliKeyif için yazılmıştır.
+﻿// ! Bu araç @Kraptor123 tarafından | @Cs-GizliKeyif için yazılmıştır.
 
 package com.kraptor
 
@@ -67,6 +67,7 @@ class AZNude : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         LicenseClient.checkLicense(name, "HOME")
         val document = app.get("${request.data}$page.html").document
         val home = document.select("div.media-list div.media-list-item").mapNotNull { it.toMainPageResult() }

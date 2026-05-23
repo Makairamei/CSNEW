@@ -1,4 +1,4 @@
-package com.kuronime
+﻿package com.kuronime
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
@@ -66,6 +66,7 @@ class KuronimeProvider : MainAPI() {
         page: Int,
         request: MainPageRequest
     ): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val url = request.data.replace("%d", page.toString())
         val req = app.get(url)
         mainUrl = getBaseUrl(req.url)

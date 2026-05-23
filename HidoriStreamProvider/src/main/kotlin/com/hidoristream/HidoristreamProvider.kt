@@ -1,4 +1,4 @@
-package com.hidoristream
+﻿package com.hidoristream
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
@@ -59,6 +59,7 @@ class HidoristreamProvider : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val url = "$mainUrl/${request.data}&page=$page"
         val document = app.get(url).document
         val items = document.select("div.listupd article.bs")

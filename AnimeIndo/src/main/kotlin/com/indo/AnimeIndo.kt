@@ -1,4 +1,4 @@
-package com.indo
+﻿package com.indo
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.LoadResponse.Companion.addAniListId
@@ -22,6 +22,7 @@ class AnimeIndo : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val isMovie = request.data.contains("/movie/")
 
         val url = if (isMovie) {

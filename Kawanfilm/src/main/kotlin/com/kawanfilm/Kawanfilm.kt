@@ -1,4 +1,4 @@
-package com.kawanfilm
+﻿package com.kawanfilm
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
@@ -38,6 +38,7 @@ class Kawanfilm : MainAPI() {
             )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val data = request.data.format(page)
         val document = app.get("$mainUrl/$data").document
         val home = document.select("article.item").mapNotNull { it.toSearchResult() }

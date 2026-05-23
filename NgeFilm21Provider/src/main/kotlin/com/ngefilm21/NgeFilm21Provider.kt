@@ -1,4 +1,4 @@
-package com.ngefilm21
+﻿package com.ngefilm21
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
@@ -50,6 +50,7 @@ class Ngefilm21Provider : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse? {
+        LicenseClient.requireLicense(name, "HOME")
         val homeItems = coroutineScope {
             categories.map { (title, urlPath) ->
                 async {

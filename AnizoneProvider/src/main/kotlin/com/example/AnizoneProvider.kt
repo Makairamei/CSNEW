@@ -1,4 +1,4 @@
-package com.example
+﻿package com.example
 
 import com.lagradost.cloudstream3.DubStatus
 import com.lagradost.cloudstream3.HomePageList
@@ -163,7 +163,7 @@ class AnizoneProvider : MainAPI() {
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest
     ): HomePageResponse {
-
+        LicenseClient.requireLicense(name, "HOME")
         val initialized = initializeLiveWire()
         if (!initialized) {
             Log.w("AniZone", "Inicialización LiveWire fallida. Retornando lista de inicio vacía.")

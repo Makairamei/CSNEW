@@ -1,4 +1,4 @@
-package com.oppadrama
+﻿package com.oppadrama
 
 import com.lagradost.cloudstream3.*  
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors  
@@ -57,6 +57,7 @@ class Oppadrama : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val url = "$mainUrl/${request.data}".plus("&page=$page")
         val document = app.get(url, referer = "$mainUrl/", headers = requestHeaders).document
         val items = document.select(searchResultSelector)

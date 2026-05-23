@@ -1,4 +1,4 @@
-package com.reelshort
+﻿package com.reelshort
 
 import com.reelshort.LicenseClient
 
@@ -28,6 +28,7 @@ class Reelshort : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         LicenseClient.checkLicense(name, "HOME")
         if (page > 1) return newHomePageResponse(request.name, emptyList())
 

@@ -1,4 +1,4 @@
-package com.alqanime
+﻿package com.alqanime
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.lagradost.cloudstream3.*
@@ -59,6 +59,7 @@ class Alqanime : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val document = app.get(request.data.format(page), headers = commonHeaders).document
         val selector = "div.listupd:not(.popularslider) article.bs"
         val home = document.select(selector).mapNotNull { it.toSearchResult() }

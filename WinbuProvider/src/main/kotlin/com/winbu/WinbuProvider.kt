@@ -1,4 +1,4 @@
-package com.winbu
+﻿package com.winbu
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
@@ -47,6 +47,7 @@ class WinbuProvider : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val path = if (page == 1) {
             request.data.replace("/page/%d/", "/").replace("page/%d/", "")
         } else {

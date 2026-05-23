@@ -1,4 +1,4 @@
-package recloudstream
+﻿package recloudstream
 
 import recloudstream.LicenseClient
 
@@ -43,6 +43,7 @@ class TwitchProvider : MainAPI() {
     private val isHorizontal = true
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         LicenseClient.checkLicense(name, "HOME")
         return when (request.name) {
             gamesName -> newHomePageResponse(parseGames(), hasNext = false) // Get top games

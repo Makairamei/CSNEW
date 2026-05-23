@@ -1,4 +1,4 @@
-package com.kazefuri
+﻿package com.kazefuri
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.ExtractorLink
@@ -28,6 +28,7 @@ class KazefuriProvider : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val url = if (page == 1) request.data.replace("/page/%d/", "/").replace("page/%d/", "")
             .replace("%d", page.toString()) else request.data.format(page)
         val document = app.get(url, referer = "$mainUrl/").document

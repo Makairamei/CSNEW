@@ -1,4 +1,4 @@
-package com.dramacool
+﻿package com.dramacool
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.lagradost.cloudstream3.*
@@ -58,6 +58,7 @@ class Dramacool : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val document = app.get("$mainUrl/${request.data.format(page)}").document
         val home = document.select("ul.list-episode-item-2 li, div.left-tab-1 ul li, ul.switch-block li, div.content-left ul li")
             .mapNotNull { it.toSearchResult(request.name.contains("Movie", true)) }

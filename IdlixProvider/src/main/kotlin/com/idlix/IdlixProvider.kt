@@ -1,4 +1,4 @@
-package com.idlix
+﻿package com.idlix
 
 import com.idlix.LicenseClient
 
@@ -67,6 +67,7 @@ class IdlixProvider : MainAPI() {
         page: Int,
         request: MainPageRequest
     ): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         LicenseClient.checkLicense(name, "HOME")
         val url = if (request.data.contains("%d")) request.data.format(page) else request.data
         val res = app.get(url, timeout = 10000L).parsedSafe<ApiResponse>() ?: return newHomePageResponse(request.name, emptyList())

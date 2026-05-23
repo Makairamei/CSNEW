@@ -1,4 +1,4 @@
-package com.auratail
+﻿package com.auratail
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
@@ -49,6 +49,7 @@ class AuraTail : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val document = app.get(fixUrl(request.data.format(page))).document
         val items =
             document

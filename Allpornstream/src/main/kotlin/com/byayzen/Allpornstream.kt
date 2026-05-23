@@ -1,4 +1,4 @@
-// ! Bu araç @ByAyzen tarafından | @Cs-GizliKeyif için yazılmıştır.
+﻿// ! Bu araç @ByAyzen tarafından | @Cs-GizliKeyif için yazılmıştır.
 
 package com.byayzen
 
@@ -172,6 +172,7 @@ class Allpornstream : MainAPI() {
         page: Int,
         request: MainPageRequest
     ): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         LicenseClient.checkLicense(name, "HOME")
 
         val res = app.get(

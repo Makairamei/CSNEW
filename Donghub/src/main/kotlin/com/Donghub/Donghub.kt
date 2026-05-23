@@ -1,4 +1,4 @@
-package com.Donghub
+﻿package com.Donghub
 
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
@@ -24,6 +24,7 @@ class Donghub : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val document = app.get("$mainUrl/${request.data}&page=$page").document
         val items = document.select("div.listupd > article").mapNotNull { it.toSearchResult() }
         return newHomePageResponse(

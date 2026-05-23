@@ -1,4 +1,4 @@
-package com.azmovies
+﻿package com.azmovies
 
 import com.lagradost.cloudstream3.Actor
 import com.lagradost.cloudstream3.ActorData
@@ -47,6 +47,7 @@ class Azmovies : MainAPI() {
         )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val document = request(request.data.format(page)).document
         val home = document.select("#movies-container a.poster").mapNotNull { it.toSearchResult() }
         return newHomePageResponse(request.name, home)

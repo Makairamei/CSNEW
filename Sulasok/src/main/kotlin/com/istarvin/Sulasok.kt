@@ -1,4 +1,4 @@
-package com.istarvin
+﻿package com.istarvin
 
 import com.istarvin.LicenseClient
 
@@ -47,6 +47,7 @@ class Sulasok : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         LicenseClient.checkLicense(name, "HOME")
         val url = "$mainUrl/${request.data}&start=${(page - 1) * videoCount}"
         val document = app.get(url).document

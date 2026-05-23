@@ -1,4 +1,4 @@
-package com.pmsm
+﻿package com.pmsm
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.lagradost.cloudstream3.Episode
@@ -50,6 +50,7 @@ class Pmsm : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val document = app.get("$mainUrl/${request.data}/page/$page").document
         val items = document.select("div.item-box").mapNotNull {
             it.toSearchResult()

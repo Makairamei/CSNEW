@@ -1,4 +1,4 @@
-package com.horis.cncverse
+﻿package com.horis.cncverse
 
 import android.content.Context
 import com.horis.cncverse.entities.EpisodesData
@@ -61,6 +61,7 @@ open class DisneyStudioProvider(
     }
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse? {
+        LicenseClient.requireLicense(name, "HOME")
         // Show star popup on first visit (shared across all CNCVerse plugins)
         context?.let { StarPopupHelper.showStarPopupIfNeeded(it) }
 

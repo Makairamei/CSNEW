@@ -1,4 +1,4 @@
-package com.byayzen
+﻿package com.byayzen
 
 import com.lagradost.api.Log
 import com.lagradost.cloudstream3.*
@@ -37,6 +37,7 @@ class EPorner : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         // Pembuatan URL dinamis yang rapi untuk menangani halaman pertama vs halaman berikutnya
         val url = if (request.data.isEmpty()) {
             if (page == 1) "$mainUrl/" else "$mainUrl/$page/"

@@ -1,4 +1,4 @@
-package com.XSDrakor
+﻿package com.XSDrakor
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.XSDrakor.XSDrakorExtractor.invokeAdiDewasa
@@ -112,6 +112,7 @@ open class XSDrakor : TmdbProvider() {
     }
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val adultQuery =
             if (settingsForProvider.enableAdult) "" else "&without_keywords=190370|13059|226161|195669"
         val type = if (request.data.contains("/movie")) "movie" else "tv"

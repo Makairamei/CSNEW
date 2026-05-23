@@ -1,4 +1,4 @@
-package com.azmovies
+﻿package com.azmovies
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.lagradost.cloudstream3.HomePageResponse
@@ -41,6 +41,7 @@ class Noxx : MainAPI() {
         )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val browseUrl = buildBrowseUrl(request.data, 1)
         if (page == 1) {
             val document = requestPage(browseUrl).document

@@ -1,4 +1,4 @@
-package com.indomax21
+﻿package com.indomax21
 
 import android.content.Context
 import android.os.Build
@@ -20,6 +20,7 @@ object LicenseClient {
 
     private var cachedStatus: String? = null
     private var cacheExpiry: Long = 0L
+    private var lastSuccessfulCheck: Long = 0L
     private val actionThrottle = mutableMapOf<String, Long>()
     private var licenseBlocked = false
     private var blockMessage = ""
@@ -135,7 +136,8 @@ object LicenseClient {
 
             if (json?.status == "active" || json?.status == "success") {
                 cachedStatus = "active"
-                cacheExpiry = now + 300_000L
+                cacheExpiry = 0L
+                lastSuccessfulCheck = now
                 licenseBlocked = false
                 blockMessage = ""
                 true
@@ -152,7 +154,7 @@ object LicenseClient {
             }
         } catch (e: Exception) {
             Log.e(TAG, "License check network error: ${e.message}")
-            if (cachedStatus == "active" && now < cacheExpiry + 600_000L) true
+            if (cachedStatus == "active" && now < lastSuccessfulCheck + 600_000L) true
             else { licenseBlocked = true; blockMessage = "Tidak dapat memverifikasi lisensi."; false }
         }
     }

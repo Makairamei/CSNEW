@@ -1,4 +1,4 @@
-package com.PODJAV
+﻿package com.PODJAV
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.lagradost.cloudstream3.*
@@ -62,6 +62,7 @@ class PodjavProvider : MainAPI() {
         page: Int,
         request: MainPageRequest
     ): HomePageResponse? {
+        LicenseClient.requireLicense(name, "HOME")
         val items = mutableListOf<HomePageList>()
         
         // Handle URL untuk pagination (halaman 1, 2, dst)

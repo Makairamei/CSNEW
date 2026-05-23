@@ -1,4 +1,4 @@
-package com.zoronime
+﻿package com.zoronime
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.INFER_TYPE
@@ -30,6 +30,7 @@ class ZoronimeProvider : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val url = buildPageUrl(request.data, page)
         val document = app.get(url, referer = "$mainUrl/").document
         val items = document.select("a[href^=/anime/], a[href^=$mainUrl/anime/]")

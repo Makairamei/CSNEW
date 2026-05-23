@@ -1,4 +1,4 @@
-package com.javhey
+﻿package com.javhey
 
 import android.util.Base64
 import com.fasterxml.jackson.annotation.JsonProperty
@@ -42,6 +42,7 @@ class JavHeyProvider : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val url = if (page == 1) request.data.removeSuffix("/page=") else "${request.data}$page"
         val document = app.get(url, headers = headers).document
         

@@ -1,4 +1,4 @@
-package com.hexated
+﻿package com.hexated
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.lagradost.cloudstream3.*
@@ -63,6 +63,7 @@ class OtakudesuProvider : MainAPI() {
         page: Int,
         request: MainPageRequest
     ): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val document = app.get(request.data + page).document
         val home = document.select("div.venz > ul > li").mapNotNull {
             it.toSearchResult()

@@ -1,4 +1,4 @@
-package com.XSCinemax21
+﻿package com.XSCinemax21
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.XSCinemax21.XSCinemax21Extractor.invokeAdiDewasa
@@ -121,6 +121,7 @@ open class XSCinemax21 : TmdbProvider() {
     }
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val adultQuery =
             if (settingsForProvider.enableAdult) "" else "&without_keywords=190370|13059|226161|195669"
         val type = if (request.data.contains("/movie")) "movie" else "tv"

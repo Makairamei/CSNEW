@@ -1,4 +1,4 @@
-package com.JAVHd
+﻿package com.JAVHd
 
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
@@ -50,6 +50,7 @@ class JAVHDProvider : MainAPI() {
         )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+            LicenseClient.requireLicense(name, "HOME")
             val document = if(request.data.contains("?ajax=1")) {
                 val json = app.get(request.data.format(page+1)).text
                 val html = JSONObject(json).optString("html", "")

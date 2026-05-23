@@ -1,4 +1,4 @@
-package com.istarvin
+﻿package com.istarvin
 
 import com.lagradost.cloudstream3.Actor
 import com.lagradost.cloudstream3.HomePageResponse
@@ -58,6 +58,7 @@ class MissAV : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val separator = if (request.data.contains("?")) "&" else "?"
         val url = "${request.data}${separator}page=$page"
 

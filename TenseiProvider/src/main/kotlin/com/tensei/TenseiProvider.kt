@@ -1,4 +1,4 @@
-package com.tensei
+﻿package com.tensei
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.lagradost.cloudstream3.*
@@ -36,6 +36,7 @@ class TenseiProvider : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val document = app.get(pageUrl(request.data, page), referer = "$mainUrl/").document
         val items = document.toSearchResults()
         val hasNext = document.select(

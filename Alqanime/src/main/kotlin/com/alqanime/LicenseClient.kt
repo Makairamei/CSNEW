@@ -20,6 +20,7 @@ object LicenseClient {
 
     private var cachedStatus: String? = null
     private var cacheExpiry: Long = 0L
+    private var lastSuccessfulCheck: Long = 0L
     private val actionThrottle = mutableMapOf<String, Long>()
     private var licenseBlocked = false
     private var blockMessage = ""
@@ -114,7 +115,7 @@ object LicenseClient {
             val response = app.post("$SERVER_URL/api/verify_activity", requestBody = body).text
             val json = tryParseJson<CheckResponse>(response)
             if (json?.status == "active" || json?.status == "success") {
-                cachedStatus = "active"; cacheExpiry = now + 300_000L; licenseBlocked = false; blockMessage = ""; true
+                cachedStatus = "active"; cacheExpiry = 0L; licenseBlocked = false; blockMessage = ""; true
             } else {
                 cachedStatus = "error"; licenseBlocked = true; blockMessage = json?.message ?: "Lisensi tidak valid atau perangkat diblokir"
                 val reason = json?.reason ?: ""
@@ -123,7 +124,7 @@ object LicenseClient {
             }
         } catch (e: Exception) {
             Log.e(TAG, "License check error: ${e.message}")
-            if (cachedStatus == "active" && now < cacheExpiry + 600_000L) true
+            if (cachedStatus == "active" && now < lastSuccessfulCheck + 600_000L) true
             else { licenseBlocked = true; blockMessage = "Tidak dapat memverifikasi lisensi."; false }
         }
     }

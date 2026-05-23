@@ -1,4 +1,4 @@
-package com.youtube.live
+﻿package com.youtube.live
 
 import android.content.SharedPreferences
 import com.lagradost.cloudstream3.Actor
@@ -45,6 +45,7 @@ open class YouTubeProvider(language: String, val sharedPref: SharedPreferences?)
         page: Int,
         request: MainPageRequest
     ): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         // Mencegah error pagination dari token yang kosong
         if (page > 1) {
             return newHomePageResponse(emptyList(), false)

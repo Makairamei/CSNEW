@@ -1,4 +1,4 @@
-package com.ymaal
+﻿package com.ymaal
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
@@ -40,6 +40,7 @@ class YMaal : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val url = if (page == 1) "$mainUrl/${request.data}/" else "$mainUrl/${request.data}/page/$page/"
         val document = app.get(url).document
         val home = document.select("a.video-card").mapNotNull { toResult(it) }

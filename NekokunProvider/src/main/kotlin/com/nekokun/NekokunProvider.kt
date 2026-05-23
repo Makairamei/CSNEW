@@ -1,4 +1,4 @@
-package com.nekokun
+﻿package com.nekokun
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.ExtractorLink
@@ -28,6 +28,7 @@ class NekokunProvider : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val url = buildPageUrl(request.data, page)
         val document = app.get(url, referer = "$mainUrl/").document
         val items = document.select("div.listupd article.bs, article.bs, div.bsx, .serieslist li")

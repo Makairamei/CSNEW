@@ -1,4 +1,4 @@
-package com.layarkaca
+﻿package com.layarkaca
 
 import com.lagradost.api.Log
 import com.lagradost.cloudstream3.*
@@ -32,6 +32,7 @@ class LayarKacaProvider : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val doc = app.get(request.data + page).document
 
         val items = doc.select("article, li.slider article").mapNotNull {

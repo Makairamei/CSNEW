@@ -1,4 +1,4 @@
-package com.megix
+﻿package com.megix
 
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
@@ -26,6 +26,7 @@ class TrendyPorn : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val document = app.get(request.data + "page" + page + ".html").document
         val home = document.select("#wrapper > div.container > div:nth-child(4) > div div.well-sm").mapNotNull { it.toSearchResult() }
 

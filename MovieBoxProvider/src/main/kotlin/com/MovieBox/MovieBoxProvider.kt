@@ -1,4 +1,4 @@
-package com.MovieBox
+﻿package com.MovieBox
 
 import android.annotation.SuppressLint
 import android.net.Uri
@@ -190,6 +190,7 @@ class MovieBoxProvider : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val mapper = jacksonObjectMapper()
 
         fun toSearchResponses(items: JsonNode): List<SearchResponse> {

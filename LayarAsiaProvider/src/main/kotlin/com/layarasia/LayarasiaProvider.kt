@@ -1,4 +1,4 @@
-package com.layarasia
+﻿package com.layarasia
 
 import com.lagradost.cloudstream3.* import com.lagradost.cloudstream3.LoadResponse.Companion.addActors  
 import com.lagradost.cloudstream3.LoadResponse.Companion.addScore  
@@ -40,6 +40,7 @@ class LayarasiaProvider : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val url = "$mainUrl/${request.data}".plus("&page=$page")
         val document = app.get(url).document
         val items = document.select("div.listupd article.bs")

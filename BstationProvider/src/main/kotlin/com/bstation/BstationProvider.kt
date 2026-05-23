@@ -1,4 +1,4 @@
-package com.bstation
+﻿package com.bstation
 
 import com.excloud.BuildConfig
 import com.fasterxml.jackson.annotation.JsonProperty
@@ -48,6 +48,7 @@ class BstationProvider : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         if (page != 1) return newHomePageResponse(HomePageList(request.name, emptyList()), hasNext = false)
 
         val timelineResults = fetchTimelineApi(40)

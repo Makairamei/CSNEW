@@ -1,4 +1,4 @@
-// ! Bu araç @ByAyzen tarafından | @Cs-GizliKeyif için yazılmıştır.
+﻿// ! Bu araç @ByAyzen tarafından | @Cs-GizliKeyif için yazılmıştır.
 
 package com.byayzen
 
@@ -34,6 +34,7 @@ class HentaiWorld : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         LicenseClient.checkLicense(name, "HOME")
         val url = request.data + if (page > 1) "page/$page/" else ""
         val document = app.get(url).document

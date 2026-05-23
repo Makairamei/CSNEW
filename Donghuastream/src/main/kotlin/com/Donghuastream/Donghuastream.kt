@@ -1,4 +1,4 @@
-package com.Donghuastream
+﻿package com.Donghuastream
 
 import android.content.Context
 import com.lagradost.api.Log
@@ -44,7 +44,7 @@ open class Donghuastream : MainAPI() {
         page: Int,
         request: MainPageRequest
     ): HomePageResponse {
-
+        LicenseClient.requireLicense(name, "HOME")
         context?.let {
         }
 

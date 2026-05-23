@@ -1,4 +1,4 @@
-package com.drakorid
+﻿package com.drakorid
 
 import com.excloud.BuildConfig
 import com.lagradost.cloudstream3.HomePageList
@@ -69,6 +69,7 @@ class DrakoridProvider : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val pageNo = if (page <= 0) 1 else page
         val url = "$mainUrl/${request.data}/$pageNo"
         val document = app.get(

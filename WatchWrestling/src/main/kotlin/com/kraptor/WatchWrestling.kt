@@ -1,4 +1,4 @@
-package com.kraptor
+﻿package com.kraptor
 
 import android.util.Log
 import org.jsoup.nodes.Element
@@ -31,6 +31,7 @@ class WatchWrestling : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         val document = app.get("${request.data}/page/$page/").document
         val home = document.select("div.loop-content div.item").mapNotNull { it.toMainPageResult() }
 

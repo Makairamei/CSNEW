@@ -1,4 +1,4 @@
-package com.istarvin
+﻿package com.istarvin
 
 import com.istarvin.LicenseClient
 
@@ -49,6 +49,7 @@ class Javtiful : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         LicenseClient.checkLicense(name, "HOME")
         val url = if (page <= 1) request.data else "${request.data}?page=$page"
         val res = app.get(url).document

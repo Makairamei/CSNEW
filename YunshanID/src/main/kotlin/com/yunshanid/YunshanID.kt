@@ -1,4 +1,4 @@
-package com.yunshanid
+﻿package com.yunshanid
 
 import com.yunshanid.LicenseClient
 
@@ -22,6 +22,7 @@ class YunshanID : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        LicenseClient.requireLicense(name, "HOME")
         LicenseClient.checkLicense(name, "HOME")
         val response = app.get("$mainUrl/api/donghuas").text
         val allDonghuas = parseJson<List<DonghuaResponse>>(response)
