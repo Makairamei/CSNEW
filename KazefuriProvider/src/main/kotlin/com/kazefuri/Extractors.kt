@@ -196,12 +196,32 @@ open class KazefuriDailymotion : ExtractorApi() {
         val embedUrl = getEmbedUrl(url) ?: return
         val id = getVideoId(embedUrl) ?: return
         val response = app.get("$baseUrl/player/metadata/video/$id", referer = embedUrl).text
-        Regex(""""url"\s*:\s*"([^"]+)"""")
+        // Extract ONLY the master playlist URL from "auto" quality.
+        // Per-variant playlists are video-only; "auto" master has both video+audio.
+        val ua = "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Mobile Safari/537.36"
+        Regex(""""auto"\s*:\s*\[\s*\{[^}]*"url"\s*:\s*"([^"]+)"""")
             .findAll(response)
-            .map { it.groupValues[1] }
-            .filter { it.contains(".m3u8") }
+            .map { it.groupValues[1].replace("\\/", "/") }
+            .filter { it.contains(".m3u8") && !it.contains("dmxleo.") }
             .distinct()
-            .forEach { streamLink -> generateM3u8(name, streamLink, "").forEach(callback) }
+            .forEach { streamLink ->
+                callback.invoke(
+                    newExtractorLink(
+                        source = name,
+                        name = name,
+                        url = streamLink,
+                        type = ExtractorLinkType.M3U8
+                    ) {
+                        this.referer = embedUrl
+                        this.quality = Qualities.Unknown.value
+                        this.headers = mapOf(
+                            "Referer" to embedUrl,
+                            "Origin" to baseUrl,
+                            "User-Agent" to ua
+                        )
+                    }
+                )
+            }
     }
 
     private fun getEmbedUrl(url: String): String? {
